@@ -1,0 +1,109 @@
+Resolving dependencies...
+Downloading packages...
+  flutter_lints 4.0.0 (6.0.0 available)
+  go_router 14.8.1 (17.1.0 available)
+  google_fonts 6.3.3 (8.0.2 available)
+  lints 4.0.0 (6.1.0 available)
+  meta 1.17.0 (1.18.2 available)
+  test_api 0.7.10 (0.7.11 available)
+  vector_math 2.2.0 (2.3.0 available)
+Got dependencies!
+7 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Launching lib\main.dart on sdk gphone64 x86 64 in debug mode...
+[!] Your app isn't using AndroidX.
+    To avoid potential build failures, you can quickly migrate your app by following the steps on https://docs.flutter.dev/release/breaking-changes/androidx-migration .
+Running Gradle task 'assembleDebug'...                          
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:checkDebugAarMetadata'.
+> Configuration `:app:debugRuntimeClasspath` contains AndroidX dependencies, but the `android.useAndroidX` property is not enabled, which may cause runtime issues.
+  Set `android.useAndroidX=true` in the `gradle.properties` file and retry.
+  The following AndroidX dependencies are detected:
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.lifecycle:lifecycle-common:2.7.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.annotation:annotation:1.9.1
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.annotation:annotation:1.9.1 -> androidx.annotation:annotation-jvm:1.9.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.lifecycle:lifecycle-common-java8:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.lifecycle:lifecycle-process:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.lifecycle:lifecycle-runtime:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.loader:loader:1.0.0 -> androidx.lifecycle:lifecycle-livedata:2.7.0 -> androidx.arch.core:core-common:2.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.loader:loader:1.0.0 -> androidx.lifecycle:lifecycle-livedata:2.7.0 -> androidx.arch.core:core-runtime:2.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.profileinstaller:profileinstaller:1.4.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.core:core:1.17.0 -> androidx.concurrent:concurrent-futures:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.lifecycle:lifecycle-process:2.7.0 -> androidx.startup:startup-runtime:1.1.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.tracing:tracing:1.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.lifecycle:lifecycle-viewmodel:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.lifecycle:lifecycle-livedata-core:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.loader:loader:1.0.0 -> androidx.lifecycle:lifecycle-livedata:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1 -> androidx.lifecycle:lifecycle-livedata-core-ktx:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.activity:activity-ktx:1.12.4 -> androidx.lifecycle:lifecycle-runtime-ktx:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1 -> androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.lifecycle:lifecycle-viewmodel-savedstate:2.7.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1 -> androidx.core:core-ktx:1.17.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.core:core:1.17.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.annotation:annotation-experimental:1.4.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.collection:collection:1.4.2
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.collection:collection:1.4.2 -> androidx.collection:collection-jvm:1.4.2
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1 -> androidx.collection:collection-ktx:1.4.2
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4 -> androidx.core:core-viewtree:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.interpolator:interpolator:1.0.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.core:core:1.17.0 -> androidx.versionedparcelable:versionedparcelable:1.1.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.savedstate:savedstate:1.2.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1 -> androidx.savedstate:savedstate-ktx:1.2.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4 -> androidx.navigationevent:navigationevent:1.0.2
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4 -> androidx.navigationevent:navigationevent:1.0.2 -> androidx.navigationevent:navigationevent-android:1.0.2
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4 -> androidx.navigationevent:navigationevent:1.0.2 -> androidx.navigationevent:navigationevent-android:1.0.2 -> androidx.compose.runtime:runtime-annotation:1.9.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.activity:activity:1.12.4 -> androidx.navigationevent:navigationevent:1.0.2 -> androidx.navigationevent:navigationevent-android:1.0.2 -> androidx.compose.runtime:runtime-annotation:1.9.0 -> androidx.compose.runtime:runtime-annotation-android:1.9.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.activity:activity-ktx:1.12.4
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.fragment:fragment:1.7.1 -> androidx.loader:loader:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.viewpager:viewpager:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.customview:customview:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.fragment:fragment-ktx:1.7.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> io.flutter:flutter_embedding_debug:1.0.0-425cfb54d01a9472b3e81d9e76fd63a4a44cfbcb -> androidx.window:window-java:1.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.slidingpanelayout:slidingpanelayout:1.2.0 -> androidx.window:window:1.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.slidingpanelayout:slidingpanelayout:1.2.0 -> androidx.window:window:1.2.0 -> androidx.window.extensions.core:core:1.0.0
+  :app:debugRuntimeClasspath -> project :image_picker_android -> androidx.exifinterface:exifinterface:1.4.2
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore:1.1.7 -> androidx.datastore:datastore-android:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-core:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.datastore:datastore-preferences:1.1.7 -> androidx.datastore:datastore-preferences-android:1.1.7 -> androidx.datastore:datastore-core:1.1.7 -> androidx.datastore:datastore-core-android:1.1.7 -> androidx.datastore:datastore-core-okio:1.1.7 -> androidx.datastore:datastore-core-okio-jvm:1.1.7 -> androidx.datastore:datastore-preferences-core:1.1.7 -> androidx.datastore:datastore-preferences-core-android:1.1.7 -> androidx.datastore:datastore-preferences-proto:1.1.7 -> androidx.datastore:datastore-preferences-external-protobuf:1.1.7
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.appcompat:appcompat:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.cursoradapter:cursoradapter:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.appcompat:appcompat:1.1.0 -> androidx.appcompat:appcompat-resources:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.appcompat:appcompat:1.1.0 -> androidx.appcompat:appcompat-resources:1.1.0 -> androidx.vectordrawable:vectordrawable:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.appcompat:appcompat:1.1.0 -> androidx.appcompat:appcompat-resources:1.1.0 -> androidx.vectordrawable:vectordrawable-animated:1.1.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.drawerlayout:drawerlayout:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.legacy:legacy-support-core-utils:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.legacy:legacy-support-core-utils:1.0.0 -> androidx.documentfile:documentfile:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.legacy:legacy-support-core-utils:1.0.0 -> androidx.localbroadcastmanager:localbroadcastmanager:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.legacy:legacy-support-core-utils:1.0.0 -> androidx.print:print:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.coordinatorlayout:coordinatorlayout:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.slidingpanelayout:slidingpanelayout:1.2.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.slidingpanelayout:slidingpanelayout:1.2.0 -> androidx.transition:transition:1.4.1
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.swiperefreshlayout:swiperefreshlayout:1.0.0
+  :app:debugRuntimeClasspath -> project :shared_preferences_android -> androidx.preference:preference:1.2.1 -> androidx.recyclerview:recyclerview:1.0.0 -> androidx.legacy:legacy-support-core-ui:1.0.0 -> androidx.asynclayoutinflater:asynclayoutinflater:1.0.0
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 25s
+Running Gradle task 'assembleDebug'...                             25.8s
+Error: Gradle task assembleDebug failed with exit code 1
