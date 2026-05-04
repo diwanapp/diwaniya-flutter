@@ -17,7 +17,6 @@ import 'endpoints.dart';
 class DiwaniyaApi {
   DiwaniyaApi._();
 
-
   static String _normalizedRequiredId(String value, String label) {
     final normalized = value.trim();
     if (normalized.isEmpty) {
@@ -54,6 +53,7 @@ class DiwaniyaApi {
     String? description,
     String? city,
     String? imageMediaId,
+    String? invitationCode,
   }) async {
     final normalizedName = name.trim();
     if (normalizedName.isEmpty) {
@@ -70,6 +70,8 @@ class DiwaniyaApi {
       if (_normalizedOptional(city) != null) 'city': _normalizedOptional(city),
       if (_normalizedOptional(imageMediaId) != null)
         'image_media_id': _normalizedOptional(imageMediaId),
+      if (_normalizedOptional(invitationCode) != null)
+        'invitation_code': _normalizedRequiredCode(invitationCode!),
     };
     final response = await ApiClient.post(Endpoints.diwaniyas, body: body);
     return _expectMap(response, 'DiwaniyaApi.create');
@@ -79,7 +81,8 @@ class DiwaniyaApi {
 
   /// Fetch a single diwaniya by id.
   static Future<Map<String, dynamic>> getById(String diwaniyaId) async {
-    final response = await ApiClient.get(Endpoints.diwaniya(_normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')));
+    final response = await ApiClient.get(Endpoints.diwaniya(
+        _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')));
     return _expectMap(response, 'DiwaniyaApi.getById');
   }
 
@@ -120,15 +123,21 @@ class DiwaniyaApi {
   /// Returns a map with `invite_code`, optional `invite_url`, `expires_at`.
   static Future<Map<String, dynamic>> generateInvite(String diwaniyaId) async {
     final response = await ApiClient.post(
-      Endpoints.diwaniyaInvites(_normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')),
+      Endpoints.diwaniyaInvites(
+          _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')),
     );
     return _expectMap(response, 'DiwaniyaApi.generateInvite');
   }
 
-  /// Accept an invite code and become a member of the target diwaniya.
-  /// Returns a map with `diwaniya_id` and `membership_id`.
+  /// Backward-compatible invite entrypoint. The backend no longer allows
+  /// direct membership by invite code; this now creates a manager-reviewed
+  /// join request through POST /join-requests.
   static Future<Map<String, dynamic>> acceptInvite(String code) async {
-    final response = await ApiClient.post(Endpoints.inviteAccept(_normalizedRequiredCode(code)));
+    final normalizedCode = _normalizedRequiredCode(code);
+    final response = await ApiClient.post(
+      Endpoints.joinRequests,
+      body: {'invitation_code': normalizedCode},
+    );
     return _expectMap(response, 'DiwaniyaApi.acceptInvite');
   }
 
@@ -141,7 +150,8 @@ class DiwaniyaApi {
     String diwaniyaId,
   ) async {
     final response = await ApiClient.get(
-      Endpoints.diwaniyaMembers(_normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')),
+      Endpoints.diwaniyaMembers(
+          _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية')),
     );
     final map = _expectMap(response, 'DiwaniyaApi.getMembers');
     final items = map['members'];
@@ -152,6 +162,23 @@ class DiwaniyaApi {
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList(growable: false);
+  }
+
+  /// Remove an active member from a diwaniya. Backend enforces manager access
+  /// and last-manager protections. This is not the demote flow.
+  static Future<Map<String, dynamic>> removeMember({
+    required String diwaniyaId,
+    required String userId,
+  }) async {
+    final normalizedDiwaniyaId = _normalizedRequiredId(
+      diwaniyaId,
+      'معرّف الديوانية',
+    );
+    final normalizedUserId = _normalizedRequiredId(userId, 'معرّف العضو');
+    final response = await ApiClient.post(
+      '/diwaniyas/$normalizedDiwaniyaId/members/$normalizedUserId/remove',
+    );
+    return _expectMap(response, 'DiwaniyaApi.removeMember');
   }
 
   // ── Helpers ──

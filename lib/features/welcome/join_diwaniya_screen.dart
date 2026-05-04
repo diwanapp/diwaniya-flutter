@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../config/theme/app_colors.dart';
+import '../../core/api/api_exception.dart';
+import '../../core/api/join_request_api.dart';
 import '../../core/models/mock_data.dart';
 import '../../core/services/auth_service.dart';
 import '../../l10n/ar.dart';
@@ -24,27 +26,50 @@ class _JoinDiwaniyaScreenState extends State<JoinDiwaniyaScreen> {
   }
 
   Future<void> _join() async {
-    if (_code.text.trim().length < 5 || _loading) return;
+    final code = _code.text.trim();
+    if (code.length < 5 || _loading) return;
     setState(() => _loading = true);
 
-    final success = await AuthService.joinDiwaniyaByCodeViaApi(_code.text);
-    if (!mounted) return;
-
-    if (!success) {
+    try {
+      await JoinRequestApi.requestJoin(invitationCode: code);
+      await AuthService.refreshMembershipsFromServer(
+        preferredDiwaniyaId: currentDiwaniyaId,
+      );
+      if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('رمز الدعوة غير صحيح')),
+        const SnackBar(content: Text('تم إرسال طلب الانضمام للمدراء')),
       );
-      return;
+      context.go(AuthService.nextRoute());
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_arabicForJoinError(e))),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر إرسال طلب الانضمام، حاول مرة أخرى')),
+      );
     }
+  }
 
-    await AuthService.refreshMembershipsFromServer(
-      preferredDiwaniyaId: currentDiwaniyaId,
-    );
-
-    if (!mounted) return;
-    setState(() => _loading = false);
-    context.go(AuthService.nextRoute());
+  String _arabicForJoinError(ApiException e) {
+    switch (e.code) {
+      case 'invite_not_found':
+      case 'not_found':
+        return 'رمز الدعوة غير صحيح';
+      case 'already_member':
+        return 'أنت عضو بالفعل في هذه الديوانية';
+      case 'duplicate_pending':
+        return 'لديك طلب انضمام قيد المراجعة لهذه الديوانية';
+      case 'cooldown':
+        return 'يرجى الانتظار قبل إرسال طلب جديد';
+      default:
+        return e.message.isNotEmpty ? e.message : 'تعذر إرسال طلب الانضمام';
+    }
   }
 
   @override
@@ -128,7 +153,7 @@ class _JoinHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'أدخل رمز الدعوة للانضمام إلى ديوانية قائمة، وسيتم التحقق من الرمز قبل إتمام الدخول.',
+            'أدخل رمز الدعوة وسيتم إرسال طلب انضمام إلى مدراء الديوانية للموافقة عليه.',
             style: TextStyle(
               fontSize: 14.5,
               height: 1.8,
