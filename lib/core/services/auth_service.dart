@@ -61,6 +61,18 @@ class AuthService {
   /// separately from approved memberships.
   static final List<JoinRequest> pendingJoinRequests = <JoinRequest>[];
 
+  /// Server-authoritative active member counts keyed by diwaniya id.
+  /// Used by switcher/settings before member lists are hydrated.
+  static final Map<String, int> diwaniyaMemberCounts = <String, int>{};
+
+  static int memberCountFor(String diwaniyaId, {int fallback = 0}) =>
+      diwaniyaMemberCounts[diwaniyaId] ?? fallback;
+
+  static bool isFounder(DiwaniyaInfo diwaniya) {
+    final creatorId = (diwaniya.creatorUserId ?? '').trim();
+    return creatorId.isNotEmpty && creatorId == currentUserId;
+  }
+
   static bool get hasPendingJoinRequest =>
       pendingJoinRequests.any((r) => r.isPending);
 
@@ -313,6 +325,7 @@ class AuthService {
 
       allDiwaniyas.clear();
       diwaniyaMembers.clear();
+      diwaniyaMemberCounts.clear();
 
       for (final raw in serverDiwaniyas) {
         final id = (raw['id'] as String?) ?? '';
@@ -329,6 +342,10 @@ class AuthService {
             : '';
 
         final existing = cachedDiwaniyas.where((d) => d.id == id).firstOrNull;
+        final rawMemberCount = raw['member_count'];
+        if (rawMemberCount is num) {
+          diwaniyaMemberCounts[id] = rawMemberCount.toInt();
+        }
 
         allDiwaniyas.add(
           DiwaniyaInfo(
@@ -710,6 +727,7 @@ class AuthService {
       final response = await DiwaniyaApi.create(
         name: name,
         city: city.isEmpty ? null : city,
+        invitationCode: invitationCode,
       );
 
       final serverId = response['id'];
@@ -722,6 +740,8 @@ class AuthService {
 
       final serverName = (response['name'] as String?) ?? name;
       final serverCity = (response['city'] as String?) ?? city;
+      final serverInvitationCode =
+          (response['invitation_code'] as String?) ?? invitationCode;
       final info = DiwaniyaInfo(
         id: serverId,
         name: serverName,
@@ -729,7 +749,7 @@ class AuthService {
         city: serverCity,
         managerId: current.userId,
         color: Color(colorValue ?? 0xFF000000),
-        invitationCode: invitationCode,
+        invitationCode: serverInvitationCode,
         creatorUserId: current.userId,
       );
 
@@ -1062,6 +1082,7 @@ class AuthService {
       }).toList();
 
       diwaniyaMembers[id] = mapped;
+      diwaniyaMemberCounts[id] = mapped.length;
 
       await AppRepository.saveDiwaniyas();
       dataVersion.value++;

@@ -353,6 +353,8 @@ class _DiwaniyaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final members = diwaniyaMembers[diw.id] ?? [];
+    final memberCount = AuthService.memberCountFor(diw.id, fallback: members.length);
+    final isFounder = AuthService.isFounder(diw);
     final isManager = UserService.isManager(diw.id);
     final rawSub = SubscriptionService.forDiwaniya(diw.id);
     final sub = (rawSub != null &&
@@ -419,13 +421,13 @@ class _DiwaniyaCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${diw.district} · ${diw.city} · ${members.length} ${Ar.memberUnit}',
+                      '${diw.district} · ${diw.city} · $memberCount ${Ar.memberUnit}',
                       style: TextStyle(fontSize: 11, color: c.t3),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _RoleBadge(c: c, isManager: isManager),
+                        _RoleBadge(c: c, isManager: isManager, isFounder: isFounder),
                         if (sub != null) ...[
                           const SizedBox(width: 6),
                           _SubBadge(c: c, sub: sub),
@@ -449,22 +451,23 @@ class _DiwaniyaCard extends StatelessWidget {
 class _RoleBadge extends StatelessWidget {
   final CL c;
   final bool isManager;
-  const _RoleBadge({required this.c, required this.isManager});
+  final bool isFounder;
+  const _RoleBadge({required this.c, required this.isManager, required this.isFounder});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isManager ? c.accentMuted : c.cardElevated,
+        color: isFounder || isManager ? c.accentMuted : c.cardElevated,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        isManager ? Ar.manager : Ar.memberUnit,
+        isFounder ? 'مؤسس' : (isManager ? Ar.manager : Ar.memberUnit),
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: isManager ? c.accent : c.t3,
+          color: isFounder || isManager ? c.accent : c.t3,
         ),
       ),
     );

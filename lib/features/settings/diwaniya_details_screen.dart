@@ -250,7 +250,8 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   }
 
   Future<void> _leave() async {
-    if (DiwaniyaManagementService.isLastManager(_did, UserService.currentName)) {
+    if (DiwaniyaManagementService.isLastManager(
+        _did, UserService.currentName)) {
       _snack(Ar.lastManagerWarning);
       return;
     }
@@ -547,7 +548,8 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
               label: Ar.district,
               value: diw.district,
             ),
-            if (diw.invitationCode != null && diw.invitationCode!.isNotEmpty) ...[
+            if (diw.invitationCode != null &&
+                diw.invitationCode!.isNotEmpty) ...[
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: () {
@@ -613,8 +615,7 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: isExpired
                       ? c.errorM
@@ -675,7 +676,11 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
 
   Widget _buildMemberTile(CL c, DiwaniyaMember m) {
     final isMe = m.name == UserService.currentName;
-    final isMgr = m.role == 'manager';
+    final creatorUserId = _diw?.creatorUserId;
+    final isFounder = creatorUserId != null &&
+        creatorUserId.isNotEmpty &&
+        m.userId == creatorUserId;
+    final isMgr = m.role == 'manager' || isFounder;
     final joinLabel = m.joinedAt != null
         ? '${m.joinedAt!.month.toString().padLeft(2, '0')}/${m.joinedAt!.year}'
         : null;
@@ -739,7 +744,9 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
                         borderRadius: BorderRadius.circular(5),
                       ),
                       child: Text(
-                        isMgr ? Ar.manager : Ar.memberUnit,
+                        isFounder
+                            ? 'مؤسس'
+                            : (isMgr ? Ar.manager : Ar.memberUnit),
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -774,6 +781,7 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
                     ),
                   ),
                 if (isMgr &&
+                    !isFounder &&
                     !DiwaniyaManagementService.isLastManager(_did, m.name))
                   PopupMenuItem(
                     value: 'demote',

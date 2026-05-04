@@ -466,7 +466,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           itemBuilder: (_, index) {
                             final d = _visibleDiwaniyas[index];
                       final sel = d.id == _diwaniyaId;
-                      final cnt = diwaniyaMembers[d.id]?.length ?? 0;
+                      final cnt = AuthService.memberCountFor(
+                        d.id,
+                        fallback: diwaniyaMembers[d.id]?.length ?? 0,
+                      );
                       return GestureDetector(
                         onTap: () async {
                           final navigator = Navigator.of(context);
@@ -1224,7 +1227,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
                   ],
                   HomeStatsSection(
-                    memberCount: _members.length,
+                    memberCount: AuthService.memberCountFor(_diwaniyaId, fallback: _members.length),
                     balanceStr: balStr,
                     balanceColor: bal >= 0 ? c.success : c.error,
                     activePolls: _activePolls,

@@ -51,12 +51,14 @@ class DiwaniyaManagementService {
 
   static bool isMemberManager(String diwaniyaId, String memberName) {
     final members = diwaniyaMembers[diwaniyaId] ?? [];
-    return members.any((m) => m.name == memberName && m.role == 'manager');
+    return members.any(
+      (m) => m.name == memberName && (m.role == 'manager' || m.role == 'founder'),
+    );
   }
 
   static int managerCount(String diwaniyaId) {
     return (diwaniyaMembers[diwaniyaId] ?? [])
-        .where((m) => m.role == 'manager')
+        .where((m) => m.role == 'manager' || m.role == 'founder')
         .length;
   }
 
