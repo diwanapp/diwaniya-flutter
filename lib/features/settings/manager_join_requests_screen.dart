@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/theme/app_colors.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/api/join_request_api.dart';
+import '../../core/services/auth_service.dart';
 import '../../l10n/ar.dart';
 
 /// Manager-only screen for reviewing pending join requests for a
@@ -21,8 +22,7 @@ class ManagerJoinRequestsScreen extends StatefulWidget {
       _ManagerJoinRequestsScreenState();
 }
 
-class _ManagerJoinRequestsScreenState
-    extends State<ManagerJoinRequestsScreen> {
+class _ManagerJoinRequestsScreenState extends State<ManagerJoinRequestsScreen> {
   bool _loading = true;
   String? _errorMessage;
   List<Map<String, dynamic>> _requests = const [];
@@ -76,9 +76,14 @@ class _ManagerJoinRequestsScreenState
     setState(() => _inFlight.add(requestId));
     try {
       await JoinRequestApi.approve(requestId);
+      await AuthService.refreshMembershipsFromServer(
+        preferredDiwaniyaId: widget.diwaniyaId,
+      );
       if (!mounted) return;
       _snack(Ar.joinRequestApproved);
       await _fetch();
+      if (!mounted) return;
+      setState(() => _inFlight.remove(requestId));
     } on ApiException catch (e) {
       if (!mounted) return;
       _snack(_arabicForError(e));
@@ -100,6 +105,8 @@ class _ManagerJoinRequestsScreenState
       if (!mounted) return;
       _snack(Ar.joinRequestRejected);
       await _fetch();
+      if (!mounted) return;
+      setState(() => _inFlight.remove(requestId));
     } on ApiException catch (e) {
       if (!mounted) return;
       _snack(_arabicForError(e));
@@ -128,8 +135,7 @@ class _ManagerJoinRequestsScreenState
           TextButton(
             onPressed: () => Navigator.of(d).pop(true),
             child: Text(Ar.confirm,
-                style: TextStyle(
-                    color: c.error, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: c.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -267,8 +273,8 @@ class _ManagerJoinRequestsScreenState
                   if (phone.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(phone,
-                        style: TextStyle(
-                            fontSize: 12, height: 1.5, color: c.t3)),
+                        style:
+                            TextStyle(fontSize: 12, height: 1.5, color: c.t3)),
                   ],
                 ],
               ),

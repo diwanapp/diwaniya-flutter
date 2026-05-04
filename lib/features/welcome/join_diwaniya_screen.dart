@@ -28,6 +28,7 @@ class _JoinDiwaniyaScreenState extends State<JoinDiwaniyaScreen> {
   Future<void> _join() async {
     final code = _code.text.trim();
     if (code.length < 5 || _loading) return;
+
     setState(() => _loading = true);
 
     try {
@@ -35,6 +36,7 @@ class _JoinDiwaniyaScreenState extends State<JoinDiwaniyaScreen> {
       await AuthService.refreshMembershipsFromServer(
         preferredDiwaniyaId: currentDiwaniyaId,
       );
+
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,19 +59,32 @@ class _JoinDiwaniyaScreenState extends State<JoinDiwaniyaScreen> {
   }
 
   String _arabicForJoinError(ApiException e) {
-    switch (e.code) {
-      case 'invite_not_found':
-      case 'not_found':
-        return 'رمز الدعوة غير صحيح';
-      case 'already_member':
-        return 'أنت عضو بالفعل في هذه الديوانية';
-      case 'duplicate_pending':
-        return 'لديك طلب انضمام قيد المراجعة لهذه الديوانية';
-      case 'cooldown':
-        return 'يرجى الانتظار قبل إرسال طلب جديد';
-      default:
-        return e.message.isNotEmpty ? e.message : 'تعذر إرسال طلب الانضمام';
+    final status = e.statusCode;
+    final haystack = '${e.code} ${e.message} ${e.toString()}'.toLowerCase();
+
+    if (haystack.contains('invite_not_found') ||
+        haystack.contains('not_found') ||
+        status == 404) {
+      return 'رمز الديوانية غير صحيح';
     }
+
+    if (haystack.contains('already_member') ||
+        haystack.contains('already a member') ||
+        haystack.contains('you are already') ||
+        (status == 409 && haystack.contains('member'))) {
+      return 'أنت مسجل في هذه الديوانية';
+    }
+
+    if (haystack.contains('duplicate_pending') ||
+        haystack.contains('pending request')) {
+      return 'لديك طلب انضمام قيد المراجعة لهذه الديوانية';
+    }
+
+    if (haystack.contains('cooldown') || status == 429) {
+      return 'يرجى الانتظار قبل إرسال طلب جديد';
+    }
+
+    return 'تعذر إرسال طلب الانضمام، حاول مرة أخرى';
   }
 
   @override
@@ -153,7 +168,7 @@ class _JoinHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'أدخل رمز الدعوة وسيتم إرسال طلب انضمام إلى مدراء الديوانية للموافقة عليه.',
+            'أدخل رمز الدعوة للانضمام إلى ديوانية قائمة، وسيتم التحقق من الرمز قبل إتمام الدخول.',
             style: TextStyle(
               fontSize: 14.5,
               height: 1.8,

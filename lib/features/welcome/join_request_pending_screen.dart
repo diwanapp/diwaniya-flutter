@@ -6,6 +6,7 @@ import '../../core/api/join_request_api.dart';
 import '../../core/models/join_request.dart';
 import '../../core/navigation/app_routes.dart';
 import '../../core/services/auth_service.dart';
+import '../../l10n/ar.dart';
 
 class JoinRequestPendingScreen extends StatefulWidget {
   const JoinRequestPendingScreen({super.key});
@@ -26,31 +27,44 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
   @override
   void initState() {
     super.initState();
-    _requests = [...AuthService.pendingJoinRequests]
-      ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    _requests = _sorted(AuthService.pendingJoinRequests);
     WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
   }
 
+  List<JoinRequest> _sorted(Iterable<JoinRequest> source) {
+    final list = source.toList();
+    list.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+    return list;
+  }
+
   Future<void> _refresh() async {
-    if (!mounted) return;
+    if (_loading) return;
     setState(() {
       _loading = true;
       _errorMessage = null;
     });
+
     try {
-      final raw = await JoinRequestApi.getMyJoinRequests();
-      final loaded = raw.map(JoinRequest.fromJson).toList()
-        ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+      final rows = await JoinRequestApi.getMyJoinRequests();
+      final parsed = _sorted(rows.map(JoinRequest.fromJson));
+      AuthService.pendingJoinRequests
+        ..clear()
+        ..addAll(parsed);
+
+      if (parsed.any((r) => r.isApproved)) {
+        await AuthService.refreshMembershipsFromServer();
+      }
+
       if (!mounted) return;
       setState(() {
-        _requests = loaded;
+        _requests = parsed;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage = 'تعذّر تحديث طلبات الانضمام. اسحب للأسفل للمحاولة مرة أخرى.';
+        _errorMessage = 'تعذر تحديث طلبات الانضمام';
       });
     }
   }
@@ -66,13 +80,9 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
     }
   }
 
-  int get _pendingCount => _requests.where((r) => r.isPending).length;
-  int get _resolvedCount => _requests.where((r) => !r.isPending).length;
-
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final visible = _visibleRequests;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -81,50 +91,49 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
         surfaceTintColor: Colors.transparent,
         title: Text(
           'طلباتي للانضمام',
-          style: TextStyle(color: c.t1, fontWeight: FontWeight.w800),
+          style: TextStyle(color: c.t1, fontWeight: FontWeight.w700),
         ),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _refresh,
+            icon: Icon(Icons.refresh_rounded, color: c.t1),
+          ),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refresh,
           color: c.accent,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
             children: [
-              _IntroCard(c: c),
+              _buildSummaryCard(c),
               const SizedBox(height: 12),
-              _FilterRow(
-                c: c,
-                selected: _filter,
-                pendingCount: _pendingCount,
-                resolvedCount: _resolvedCount,
-                onChanged: (value) => setState(() => _filter = value),
-              ),
-              if (_loading) ...[
-                const SizedBox(height: 24),
-                Center(child: CircularProgressIndicator(color: c.accent)),
-              ] else if (_errorMessage != null) ...[
-                const SizedBox(height: 14),
-                _InlineMessage(c: c, message: _errorMessage!, isError: true),
-              ] else if (visible.isEmpty) ...[
-                const SizedBox(height: 36),
-                _EmptyState(c: c, filter: _filter),
-              ] else ...[
-                const SizedBox(height: 12),
-                ...visible.map(
-                  (r) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _JoinRequestTile(request: r),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _HistoryNote(c: c),
-              ],
+              _buildFilters(c),
+              const SizedBox(height: 12),
+              if (_loading && _requests.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 80),
+                  child:
+                      Center(child: CircularProgressIndicator(color: c.accent)),
+                )
+              else if (_errorMessage != null)
+                _buildMessage(c, Icons.error_outline_rounded, _errorMessage!)
+              else if (_visibleRequests.isEmpty)
+                _buildMessage(
+                    c, Icons.inbox_rounded, 'لا توجد طلبات في هذا التصنيف')
+              else
+                ..._visibleRequests
+                    .map((request) => _buildRequestCard(c, request)),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: () => context.push(AppRoutes.joinDiwaniya),
-                icon: const Icon(Icons.login_rounded),
-                label: const Text('إرسال طلب انضمام جديد'),
+                onPressed: () async {
+                  await AuthService.signOutFromApi();
+                  if (!context.mounted) return;
+                  context.go(AppRoutes.auth);
+                },
+                icon: Icon(Icons.logout_rounded, color: c.error),
+                label: Text(Ar.signOut, style: TextStyle(color: c.error)),
               ),
             ],
           ),
@@ -132,15 +141,11 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
       ),
     );
   }
-}
 
-class _IntroCard extends StatelessWidget {
-  final dynamic c;
-
-  const _IntroCard({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSummaryCard(CL c) {
+    final pending = _requests.where((r) => r.isPending).length;
+    final approved = _requests.where((r) => r.isApproved).length;
+    final rejected = _requests.where((r) => r.isRejected).length;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -150,255 +155,122 @@ class _IntroCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.fact_check_rounded, color: c.accent),
-          const SizedBox(width: 10),
+          Icon(Icons.pending_actions_rounded, color: c.accent),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'هنا تظهر جميع طلبات الانضمام السابقة والحالية بدون إرباك الشاشة الرئيسية.',
-              style: TextStyle(fontSize: 13.5, height: 1.6, color: c.t2),
+              'قيد المراجعة: $pending • مقبولة: $approved • مرفوضة: $rejected',
+              style: TextStyle(color: c.t2, height: 1.6),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _FilterRow extends StatelessWidget {
-  final dynamic c;
-  final _JoinRequestFilter selected;
-  final int pendingCount;
-  final int resolvedCount;
-  final ValueChanged<_JoinRequestFilter> onChanged;
+  Widget _buildFilters(CL c) {
+    Widget chip(String label, _JoinRequestFilter value) {
+      final selected = _filter == value;
+      return ChoiceChip(
+        selected: selected,
+        label: Text(label),
+        onSelected: (_) => setState(() => _filter = value),
+        selectedColor: c.accentMuted,
+        labelStyle: TextStyle(
+          color: selected ? c.accent : c.t2,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+        backgroundColor: c.inputBg,
+        side: BorderSide(color: selected ? c.accent : c.border),
+      );
+    }
 
-  const _FilterRow({
-    required this.c,
-    required this.selected,
-    required this.pendingCount,
-    required this.resolvedCount,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        _chip('الكل', _JoinRequestFilter.all),
-        _chip('قيد المراجعة ($pendingCount)', _JoinRequestFilter.pending),
-        _chip('المنتهية ($resolvedCount)', _JoinRequestFilter.resolved),
+        chip('الكل', _JoinRequestFilter.all),
+        chip('قيد المراجعة', _JoinRequestFilter.pending),
+        chip('محسومة', _JoinRequestFilter.resolved),
       ],
     );
   }
 
-  Widget _chip(String label, _JoinRequestFilter value) {
-    final active = selected == value;
-    return ChoiceChip(
-      selected: active,
-      label: Text(label),
-      onSelected: (_) => onChanged(value),
-      selectedColor: c.accentMuted,
-      backgroundColor: c.card,
-      labelStyle: TextStyle(
-        color: active ? c.accent : c.t2,
-        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-      ),
-      shape: StadiumBorder(side: BorderSide(color: active ? c.accent : c.border)),
-    );
-  }
-}
-
-class _InlineMessage extends StatelessWidget {
-  final dynamic c;
-  final String message;
-  final bool isError;
-
-  const _InlineMessage({
-    required this.c,
-    required this.message,
-    required this.isError,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isError ? c.error : c.accent;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(color: c.t2, fontSize: 13.5, height: 1.6),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final dynamic c;
-  final _JoinRequestFilter filter;
-
-  const _EmptyState({required this.c, required this.filter});
-
-  @override
-  Widget build(BuildContext context) {
-    final title = switch (filter) {
-      _JoinRequestFilter.pending => 'لا توجد طلبات قيد المراجعة',
-      _JoinRequestFilter.resolved => 'لا توجد طلبات منتهية',
-      _JoinRequestFilter.all => 'لا توجد طلبات انضمام',
-    };
-    final subtitle = switch (filter) {
-      _JoinRequestFilter.pending => 'أي طلب جديد تنتظر موافقته سيظهر هنا.',
-      _JoinRequestFilter.resolved => 'الطلبات المقبولة أو المرفوضة ستظهر هنا كسجل.',
-      _JoinRequestFilter.all => 'أي طلب ترسله للانضمام إلى ديوانية سيظهر هنا بحالته الحالية.',
-    };
-
+  Widget _buildMessage(CL c, IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.only(top: 60),
       child: Column(
         children: [
-          Icon(Icons.mark_email_unread_outlined, size: 62, color: c.t3),
-          const SizedBox(height: 16),
+          Icon(icon, size: 54, color: c.t3),
+          const SizedBox(height: 12),
           Text(
-            title,
+            text,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: c.t1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, height: 1.7, color: c.t2),
+            style: TextStyle(color: c.t2, height: 1.7),
           ),
         ],
       ),
     );
   }
-}
 
-class _JoinRequestTile extends StatelessWidget {
-  final JoinRequest request;
-
-  const _JoinRequestTile({required this.request});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    final state = _state(context, request);
-    final name = request.diwaniyaName.trim().isEmpty
-        ? 'الديوانية'
-        : request.diwaniyaName.trim();
+  Widget _buildRequestCard(CL c, JoinRequest request) {
+    final statusText = request.isApproved
+        ? 'تم قبول الطلب'
+        : request.isRejected
+            ? 'تم رفض الطلب'
+            : 'قيد مراجعة المدير';
+    final icon = request.isApproved
+        ? Icons.check_circle_rounded
+        : request.isRejected
+            ? Icons.cancel_rounded
+            : Icons.hourglass_top_rounded;
+    final color = request.isApproved
+        ? c.success
+        : request.isRejected
+            ? c.error
+            : c.accent;
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: c.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: state.color.withValues(alpha: 0.22)),
+        border: Border.all(color: c.border),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: state.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(state.icon, color: state.color, size: 22),
-          ),
+          Icon(icon, color: color),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  state.title,
+                  request.diwaniyaName.isNotEmpty
+                      ? request.diwaniyaName
+                      : 'ديوانية',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
                     color: c.t1,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
-                  '$name${request.diwaniyaCity.trim().isNotEmpty ? ' • ${request.diwaniyaCity.trim()}' : ''}',
-                  style: TextStyle(fontSize: 13, color: c.t2, height: 1.5),
-                ),
-                const SizedBox(height: 7),
-                Text(
-                  state.subtitle,
-                  style: TextStyle(fontSize: 12.5, color: c.t3, height: 1.6),
+                  statusText,
+                  style: TextStyle(color: c.t2, height: 1.5),
                 ),
               ],
             ),
           ),
+          if (request.isApproved)
+            TextButton(
+              onPressed: () => context.go(AuthService.nextRoute()),
+              child: Text('الدخول', style: TextStyle(color: c.accent)),
+            ),
         ],
       ),
     );
   }
-
-  _JoinRequestUiState _state(BuildContext context, JoinRequest r) {
-    final c = context.cl;
-    if (r.isApproved) {
-      return _JoinRequestUiState(
-        title: 'تم قبول طلب الانضمام',
-        subtitle: 'يمكنك الآن الدخول إلى الديوانية من قائمة ديوانياتك.',
-        icon: Icons.check_circle_rounded,
-        color: c.success,
-      );
-    }
-    if (r.isRejected) {
-      return _JoinRequestUiState(
-        title: 'تم رفض طلب الانضمام',
-        subtitle: 'لم تتم إضافتك إلى الديوانية. يمكنك إرسال طلب جديد عند الحاجة.',
-        icon: Icons.cancel_rounded,
-        color: c.error,
-      );
-    }
-    return _JoinRequestUiState(
-      title: 'بانتظار موافقة المدير',
-      subtitle: 'طلبك قيد مراجعة مدراء الديوانية.',
-      icon: Icons.hourglass_top_rounded,
-      color: c.accent,
-    );
-  }
-}
-
-class _HistoryNote extends StatelessWidget {
-  final dynamic c;
-
-  const _HistoryNote({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'سيبقى هذا السجل مرجعًا لحالات طلباتك السابقة. لاحقًا يمكن أرشفته أو تصفيته حسب المدة عند الحاجة.',
-      style: TextStyle(fontSize: 12, height: 1.6, color: c.t3),
-      textAlign: TextAlign.center,
-    );
-  }
-}
-
-class _JoinRequestUiState {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-
-  const _JoinRequestUiState({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-  });
 }

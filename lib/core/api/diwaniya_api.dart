@@ -52,8 +52,8 @@ class DiwaniyaApi {
     required String name,
     String? description,
     String? city,
-    String? imageMediaId,
     String? invitationCode,
+    String? imageMediaId,
   }) async {
     final normalizedName = name.trim();
     if (normalizedName.isEmpty) {
@@ -68,10 +68,10 @@ class DiwaniyaApi {
       if (_normalizedOptional(description) != null)
         'description': _normalizedOptional(description),
       if (_normalizedOptional(city) != null) 'city': _normalizedOptional(city),
-      if (_normalizedOptional(imageMediaId) != null)
-        'image_media_id': _normalizedOptional(imageMediaId),
       if (_normalizedOptional(invitationCode) != null)
         'invitation_code': _normalizedRequiredCode(invitationCode!),
+      if (_normalizedOptional(imageMediaId) != null)
+        'image_media_id': _normalizedOptional(imageMediaId),
     };
     final response = await ApiClient.post(Endpoints.diwaniyas, body: body);
     return _expectMap(response, 'DiwaniyaApi.create');
@@ -129,15 +129,11 @@ class DiwaniyaApi {
     return _expectMap(response, 'DiwaniyaApi.generateInvite');
   }
 
-  /// Backward-compatible invite entrypoint. The backend no longer allows
-  /// direct membership by invite code; this now creates a manager-reviewed
-  /// join request through POST /join-requests.
+  /// Accept an invite code and become a member of the target diwaniya.
+  /// Returns a map with `diwaniya_id` and `membership_id`.
   static Future<Map<String, dynamic>> acceptInvite(String code) async {
-    final normalizedCode = _normalizedRequiredCode(code);
     final response = await ApiClient.post(
-      Endpoints.joinRequests,
-      body: {'invitation_code': normalizedCode},
-    );
+        Endpoints.inviteAccept(_normalizedRequiredCode(code)));
     return _expectMap(response, 'DiwaniyaApi.acceptInvite');
   }
 
@@ -162,23 +158,6 @@ class DiwaniyaApi {
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList(growable: false);
-  }
-
-  /// Remove an active member from a diwaniya. Backend enforces manager access
-  /// and last-manager protections. This is not the demote flow.
-  static Future<Map<String, dynamic>> removeMember({
-    required String diwaniyaId,
-    required String userId,
-  }) async {
-    final normalizedDiwaniyaId = _normalizedRequiredId(
-      diwaniyaId,
-      'معرّف الديوانية',
-    );
-    final normalizedUserId = _normalizedRequiredId(userId, 'معرّف العضو');
-    final response = await ApiClient.post(
-      '/diwaniyas/$normalizedDiwaniyaId/members/$normalizedUserId/remove',
-    );
-    return _expectMap(response, 'DiwaniyaApi.removeMember');
   }
 
   // ── Helpers ──

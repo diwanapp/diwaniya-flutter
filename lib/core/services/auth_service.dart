@@ -27,7 +27,6 @@ class AuthService {
   static const _otpVerifiedKey = 'otpVerified';
   static const _avatarKey = 'avatarSelected';
   static const _pendingCreateKey = 'pendingCreateDiwaniya';
-  static final Map<String, int> _memberCountByDiwaniya = <String, int>{};
 
   static UserProfile? get profile {
     final raw = SessionService.get<String>(_profileKey);
@@ -311,19 +310,10 @@ class AuthService {
 
       allDiwaniyas.clear();
       diwaniyaMembers.clear();
-      _memberCountByDiwaniya.clear();
 
       for (final raw in serverDiwaniyas) {
         final id = (raw['id'] as String?) ?? '';
         if (id.isEmpty) continue;
-
-        final memberCountRaw = raw['member_count'];
-        final memberCount = memberCountRaw is num
-            ? memberCountRaw.toInt()
-            : int.tryParse(memberCountRaw?.toString() ?? '');
-        _memberCountByDiwaniya[id] = memberCount ??
-            diwaniyaMembers[id]?.length ??
-            _localMemberCountFor(id);
 
         final roleTypesRaw = raw['role_types'];
         final roleTypes = roleTypesRaw is List
@@ -352,6 +342,8 @@ class AuthService {
                 existing?.creatorUserId ??
                 '',
             imagePath: existing?.imagePath,
+            memberCount:
+                _readPositiveInt(raw['member_count']) ?? existing?.memberCount,
           ),
         );
       }
@@ -587,44 +579,68 @@ class AuthService {
     await SessionService.put(_pendingCreateKey, null);
   }
 
-  static int _localMemberCountFor(String diwaniyaId) {
-    final id = diwaniyaId.trim();
-    if (id.isEmpty) return 0;
-    return diwaniyaMembers[id]?.length ?? 0;
+  static int? _readPositiveInt(dynamic value) {
+    if (value is int) {
+      return value >= 0 ? value : null;
+    }
+    if (value is num) {
+      final parsed = value.toInt();
+      return parsed >= 0 ? parsed : null;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      return parsed != null && parsed >= 0 ? parsed : null;
+    }
+    return null;
   }
 
   static int memberCountFor(String diwaniyaId, {int? fallback}) {
-    final id = diwaniyaId.trim();
-    if (id.isEmpty) return fallback ?? 0;
-    final serverCount = _memberCountByDiwaniya[id];
-    if (serverCount != null && serverCount >= 0) {
-      return serverCount;
+    final normalizedId = diwaniyaId.trim();
+    if (normalizedId.isEmpty) {
+      return fallback ?? 0;
     }
-    final localCount = _localMemberCountFor(id);
-    if (localCount > 0) {
-      return localCount;
+
+    final members = diwaniyaMembers[normalizedId];
+    if (members != null && members.isNotEmpty) {
+      return members.length;
     }
+
+    final info = allDiwaniyas.where((d) => d.id == normalizedId).firstOrNull;
+    if (info?.memberCount != null) {
+      return info!.memberCount!;
+    }
+
     return fallback ?? 0;
   }
 
   static bool isFounder(Object diwaniyaOrId) {
-    final currentUser = profile;
-    if (currentUser == null) return false;
-
+    String diwaniyaId;
     if (diwaniyaOrId is DiwaniyaInfo) {
-      final creatorUserId = diwaniyaOrId.creatorUserId?.trim() ?? '';
-      return creatorUserId.isNotEmpty && creatorUserId == currentUser.userId;
+      diwaniyaId = diwaniyaOrId.id;
+      final creatorId = (diwaniyaOrId.creatorUserId ?? '').trim();
+      if (creatorId.isNotEmpty && currentUserId.isNotEmpty) {
+        return creatorId == currentUserId;
+      }
+    } else {
+      diwaniyaId = diwaniyaOrId.toString();
     }
 
-    final id = diwaniyaOrId.toString().trim();
-    if (id.isEmpty) return false;
-
-    for (final diwaniya in allDiwaniyas) {
-      if (diwaniya.id != id) continue;
-      final creatorUserId = diwaniya.creatorUserId?.trim() ?? '';
-      return creatorUserId.isNotEmpty && creatorUserId == currentUser.userId;
+    final normalizedId = diwaniyaId.trim();
+    if (normalizedId.isEmpty || currentUserId.isEmpty) {
+      return false;
     }
-    return false;
+
+    final info = allDiwaniyas.where((d) => d.id == normalizedId).firstOrNull;
+    final creatorId = (info?.creatorUserId ?? '').trim();
+    if (creatorId.isNotEmpty) {
+      return creatorId == currentUserId;
+    }
+
+    final members = diwaniyaMembers[normalizedId] ?? const <DiwaniyaMember>[];
+    return members.any(
+      (member) =>
+          member.userId == currentUserId && member.role.trim() == 'founder',
+    );
   }
 
   static List<DiwaniyaInfo> getLocalDiwaniyaDirectory() {
@@ -647,6 +663,7 @@ class AuthService {
             color: Color((j['color'] as num).toInt()),
             invitationCode: j['invitationCode'] as String?,
             creatorUserId: j['creatorUserId'] as String?,
+            memberCount: _readPositiveInt(j['memberCount']),
           ),
         )
         .toList();
@@ -671,6 +688,7 @@ class AuthService {
       color: Color((draft['color'] as num).toInt()),
       invitationCode: draft['invitationCode'] as String,
       creatorUserId: current.userId,
+      memberCount: 1,
     );
 
     allDiwaniyas.removeWhere((d) => d.id == diwaniyaId);
@@ -687,8 +705,6 @@ class AuthService {
         userId: current.userId,
       ),
     ];
-    _memberCountByDiwaniya[diwaniyaId] =
-        diwaniyaMembers[diwaniyaId]?.length ?? 1;
 
     final rawMembers = draft['initialMembers'];
     if (rawMembers is List) {
@@ -757,6 +773,7 @@ class AuthService {
       final response = await DiwaniyaApi.create(
         name: name,
         city: city.isEmpty ? null : city,
+        invitationCode: invitationCode,
       );
 
       final serverId = response['id'];
@@ -776,8 +793,10 @@ class AuthService {
         city: serverCity,
         managerId: current.userId,
         color: Color(colorValue ?? 0xFF000000),
-        invitationCode: invitationCode,
+        invitationCode:
+            ((response['invitation_code'] as String?) ?? invitationCode),
         creatorUserId: current.userId,
+        memberCount: 1,
       );
 
       final refreshed = await refreshMembershipsFromServer(
@@ -982,6 +1001,7 @@ class AuthService {
             color: const Color(0xFF2E7D8C),
             invitationCode: normalized,
             creatorUserId: '',
+            memberCount: 0,
           );
 
       final refreshed = await refreshMembershipsFromServer(
@@ -1074,6 +1094,7 @@ class AuthService {
         color: existing?.color ?? const Color(0xFF2E7D8C),
         invitationCode: existing?.invitationCode,
         creatorUserId: existing?.creatorUserId ?? '',
+        memberCount: memberResponse.length,
       );
       allDiwaniyas.removeWhere((d) => d.id == id);
       allDiwaniyas.add(merged);

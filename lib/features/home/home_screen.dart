@@ -8,6 +8,7 @@ import '../../config/theme/app_colors.dart';
 import '../../core/models/chat_models.dart';
 import '../../core/models/mock_data.dart';
 import '../../core/models/expense_models.dart';
+import '../../core/api/join_request_api.dart';
 import '../../core/services/expense_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/maqadi_service.dart';
@@ -23,6 +24,7 @@ import '../../core/repositories/app_repository.dart';
 import '../../core/navigation/app_routes.dart';
 import '../../l10n/ar.dart';
 import '../maqadi/maqadi_screen.dart';
+import '../settings/manager_join_requests_screen.dart';
 import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
 import 'widgets/home_quick_actions_section.dart';
@@ -50,6 +52,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _upgradeBannerDismissed = false;
   bool _isRefreshingHome = false;
   int _refreshGeneration = 0;
+  int _pendingJoinRequestCount = 0;
+  Map<String, int> _pendingJoinRequestCountsByDiwaniya = const {};
   String? _lastUpgradeBannerViewKey;
   @override
   void initState() {
@@ -117,6 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ).catchError((_) {}),
       ]);
 
+      await _syncPendingJoinRequests(did).catchError((_) {});
+
       if (!mounted || generation != _refreshGeneration) return;
       setState(() {});
     } catch (_) {
@@ -151,9 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool get _showUpgradeBanner =>
-      _hasDiwaniya &&
-      !EntitlementService.isPremium &&
-      !_upgradeBannerDismissed;
+      _hasDiwaniya && !EntitlementService.isPremium && !_upgradeBannerDismissed;
 
   Future<void> _openUpgradeFromBanner() async {
     final upgraded = await PaywallService.showFullPaywall(
@@ -182,95 +186,94 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _capturePhotoQuick() async {
-  if (!_hasDiwaniya) {
-    return;
-  }
-
-  // Free-tier photo limit gate — check BEFORE opening the camera so the
-  // user isn't asked to take a photo only to have it rejected.
-  final photoLimitStatus = EntitlementService.checkPhotoLimit(_diwaniyaId);
-  if (photoLimitStatus == LimitStatus.atLimit) {
-    PaywallService.trackEvent(
-      AnalyticsEvents.photoLimitHit,
-      properties: {
-        'source': 'home_quick_capture',
-        'diwaniyaId': _diwaniyaId,
-        'count': _albumCount,
-      },
-    );
-
-    final upgraded = await PaywallService.showContextualPaywall(
-      context,
-      trigger: PaywallTrigger.photoLimit,
-      title: 'ذكرياتك غالية 📸',
-      message:
-          'وصلت الحد الأقصى (10 صور) في الباقة المجانية.\nترقّى واحتفظ بكل لحظة بدون قيود.',
-      icon: Icons.photo_library_rounded,
-    );
-
-    if (!mounted) return;
-    if (!upgraded) {
-      _snack('تم إيقاف الحفظ حتى تتم الترقية');
+    if (!_hasDiwaniya) {
       return;
     }
 
-    _snack(Ar.premiumActivated);
-  }
+    // Free-tier photo limit gate — check BEFORE opening the camera so the
+    // user isn't asked to take a photo only to have it rejected.
+    final photoLimitStatus = EntitlementService.checkPhotoLimit(_diwaniyaId);
+    if (photoLimitStatus == LimitStatus.atLimit) {
+      PaywallService.trackEvent(
+        AnalyticsEvents.photoLimitHit,
+        properties: {
+          'source': 'home_quick_capture',
+          'diwaniyaId': _diwaniyaId,
+          'count': _albumCount,
+        },
+      );
 
-  final picker = ImagePicker();
-  final picked = await picker.pickImage(
-    source: ImageSource.camera,
-    imageQuality: 82,
-  );
-  if (picked == null) {
-    return;
-  }
+      final upgraded = await PaywallService.showContextualPaywall(
+        context,
+        trigger: PaywallTrigger.photoLimit,
+        title: 'ذكرياتك غالية 📸',
+        message:
+            'وصلت الحد الأقصى (10 صور) في الباقة المجانية.\nترقّى واحتفظ بكل لحظة بدون قيود.',
+        icon: Icons.photo_library_rounded,
+      );
 
-  if (!mounted) return;
+      if (!mounted) return;
+      if (!upgraded) {
+        _snack('تم إيقاف الحفظ حتى تتم الترقية');
+        return;
+      }
 
-  final dir = await getApplicationDocumentsDirectory();
-  final imgDir = Directory('${dir.path}/album_images');
-  if (!await imgDir.exists()) {
-    await imgDir.create(recursive: true);
-  }
+      _snack(Ar.premiumActivated);
+    }
 
-  final saved = await File(picked.path).copy(
-    '${imgDir.path}/album_${_diwaniyaId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
-  );
-
-  try {
-    await AlbumService.uploadPhoto(
-      saved,
-      diwaniyaId: _diwaniyaId,
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 82,
     );
+    if (picked == null) {
+      return;
+    }
+
     if (!mounted) return;
-    _addActivity(
-      'album_photo_added',
-      UserService.currentName,
-      'تمت إضافة صورة جديدة إلى الألبوم',
-      Icons.photo_library_rounded,
-      const Color(0xFF34D399),
+
+    final dir = await getApplicationDocumentsDirectory();
+    final imgDir = Directory('${dir.path}/album_images');
+    if (!await imgDir.exists()) {
+      await imgDir.create(recursive: true);
+    }
+
+    final saved = await File(picked.path).copy(
+      '${imgDir.path}/album_${_diwaniyaId}_${DateTime.now().millisecondsSinceEpoch}.jpg',
     );
-    _addNotif(
-      'صورة جديدة أضيفت إلى الألبوم',
-      'album',
-      Icons.photo_library_rounded,
-      const Color(0xFF34D399),
-    );
-    await _persistHomeFeed();
-    if (!mounted) return;
-    setState(() {});
-    _snack('تم حفظ الصورة في الألبوم');
-  } catch (_) {
-    if (!mounted) return;
-    _snack('تعذر رفع الصورة');
+
+    try {
+      await AlbumService.uploadPhoto(
+        saved,
+        diwaniyaId: _diwaniyaId,
+      );
+      if (!mounted) return;
+      _addActivity(
+        'album_photo_added',
+        UserService.currentName,
+        'تمت إضافة صورة جديدة إلى الألبوم',
+        Icons.photo_library_rounded,
+        const Color(0xFF34D399),
+      );
+      _addNotif(
+        'صورة جديدة أضيفت إلى الألبوم',
+        'album',
+        Icons.photo_library_rounded,
+        const Color(0xFF34D399),
+      );
+      await _persistHomeFeed();
+      if (!mounted) return;
+      setState(() {});
+      _snack('تم حفظ الصورة في الألبوم');
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر رفع الصورة');
+    }
   }
-}
-
-
 
   String get _diwaniyaId {
-    final resolved = _visibleDiwaniyas.where((d) => d.id == currentDiwaniyaId).firstOrNull;
+    final resolved =
+        _visibleDiwaniyas.where((d) => d.id == currentDiwaniyaId).firstOrNull;
     if (resolved != null) {
       return currentDiwaniyaId;
     }
@@ -293,8 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Crash guard: require that the current diwaniya id actually resolves
   // to a DiwaniyaInfo. Protects against stale currentDiwaniyaId pointing
   // at a diwaniya that was removed, failed to sync, or never hydrated.
-  bool get _hasDiwaniya =>
-      _diwaniyaId.isNotEmpty && _diw != null;
+  bool get _hasDiwaniya => _diwaniyaId.isNotEmpty && _diw != null;
   List<DiwaniyaMember> get _members => diwaniyaMembers[_diwaniyaId] ?? [];
   List<DiwaniyaPoll> get _polls => diwaniyaPolls[_diwaniyaId] ?? [];
   List<DiwaniyaActivity> get _activities =>
@@ -309,10 +311,86 @@ class _HomeScreenState extends State<HomeScreen> {
   int get _activePolls => _polls.where((p) => p.isActive).length;
   int get _maqadiNeeded =>
       _maqadiItems.where((i) => i.status == 'needed').length;
-  int get _unreadNotifs => _notifs.where((n) => !n.isRead && n.type != 'chat').length;
+  int get _unreadNotifs =>
+      _notifs.where((n) => !n.isRead && n.type != 'chat').length;
   double get _myBalance =>
       ExpenseService.balanceFor(UserService.currentName, _diwaniyaId);
   int get _chatUnread => ChatService.unreadCount(_diwaniyaId);
+
+  bool _canManageDiwaniya(DiwaniyaInfo diwaniya) {
+    final currentName = UserService.currentName.trim();
+    final currentId = UserService.currentId.trim();
+
+    if (currentId.isNotEmpty &&
+        (diwaniya.managerId == currentId ||
+            diwaniya.creatorUserId == currentId ||
+            AuthService.isFounder(diwaniya))) {
+      return true;
+    }
+
+    final members = diwaniyaMembers[diwaniya.id] ?? const <DiwaniyaMember>[];
+    return members.any((m) {
+      final isCurrent = (currentId.isNotEmpty && m.userId == currentId) ||
+          (currentName.isNotEmpty && m.name == currentName);
+      final role = m.role.toLowerCase();
+      return isCurrent &&
+          (role == 'manager' || role == 'founder' || role == 'billing_owner');
+    });
+  }
+
+  Future<void> _syncPendingJoinRequests(String diwaniyaId) async {
+    final managed = _visibleDiwaniyas.where(_canManageDiwaniya).toList();
+    if (managed.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _pendingJoinRequestCount = 0;
+          _pendingJoinRequestCountsByDiwaniya = const {};
+        });
+      }
+      return;
+    }
+
+    final counts = <String, int>{};
+    var total = 0;
+    for (final diwaniya in managed) {
+      try {
+        final rows = await JoinRequestApi.listPendingForDiwaniya(diwaniya.id);
+        counts[diwaniya.id] = rows.length;
+        total += rows.length;
+      } catch (_) {
+        counts[diwaniya.id] = 0;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _pendingJoinRequestCount = total;
+      _pendingJoinRequestCountsByDiwaniya = counts;
+    });
+  }
+
+  Future<void> _openManagerJoinRequests() async {
+    var did = _diwaniyaId;
+    final selectedCount = _pendingJoinRequestCountsByDiwaniya[did] ?? 0;
+    if (selectedCount == 0) {
+      final pendingIds = _pendingJoinRequestCountsByDiwaniya.entries
+          .where((entry) => entry.value > 0)
+          .map((entry) => entry.key)
+          .toList();
+      if (pendingIds.isNotEmpty) {
+        did = pendingIds.first;
+      }
+    }
+
+    if (did.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ManagerJoinRequestsScreen(diwaniyaId: did),
+      ),
+    );
+    if (!mounted) return;
+    await _syncPendingJoinRequests(did);
+  }
 
   ChatMessage? get _lastChatMessage => ChatService.lastMessage(_diwaniyaId);
 
@@ -321,7 +399,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String? get _chatPreview {
     final last = _lastChatMessage;
     if (last == null) return null;
-    if (last.messageType == 'image' && (last.text == null || last.text!.trim().isEmpty)) {
+    if (last.messageType == 'image' &&
+        (last.text == null || last.text!.trim().isEmpty)) {
       return 'أرسل صورة';
     }
     final text = (last.text ?? '').trim();
@@ -428,7 +507,8 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               children: [
@@ -462,92 +542,96 @@ class _HomeScreenState extends State<HomeScreen> {
                       : ListView.separated(
                           padding: EdgeInsets.zero,
                           itemCount: _visibleDiwaniyas.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
                           itemBuilder: (_, index) {
                             final d = _visibleDiwaniyas[index];
-                      final sel = d.id == _diwaniyaId;
-                      final cnt = AuthService.memberCountFor(
-                        d.id,
-                        fallback: diwaniyaMembers[d.id]?.length ?? 0,
-                      );
-                      return GestureDetector(
-                        onTap: () async {
-                          final navigator = Navigator.of(context);
-                          await AuthService.switchSelectedDiwaniya(d.id);
-                          if (!mounted) return;
-                          await _refreshHomeData(showErrors: false);
-                          if (!mounted) return;
-                          navigator.pop();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: sel ? c.accentMuted : c.inputBg,
-                            borderRadius: BorderRadius.circular(14),
-                            border: sel
-                                ? Border.all(
-                                    color: c.accent.withValues(alpha: 0.4),
-                                  )
-                                : null,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
+                            final sel = d.id == _diwaniyaId;
+                            final cnt = AuthService.memberCountFor(
+                              d.id,
+                              fallback: d.memberCount,
+                            );
+                            return GestureDetector(
+                              onTap: () async {
+                                final navigator = Navigator.of(context);
+                                await AuthService.switchSelectedDiwaniya(d.id);
+                                if (!mounted) return;
+                                await _refreshHomeData(showErrors: false);
+                                if (!mounted) return;
+                                navigator.pop();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 14,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: d.color.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(11),
+                                  color: sel ? c.accentMuted : c.inputBg,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: sel
+                                      ? Border.all(
+                                          color:
+                                              c.accent.withValues(alpha: 0.4),
+                                        )
+                                      : null,
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    d.name.trim().isEmpty
-                                        ? 'د'
-                                        : d.name.trim().substring(0, 1),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: d.color,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                child: Row(
                                   children: [
-                                    Text(
-                                      d.name,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: sel ? c.accent : c.t1,
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: d.color.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(11),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          d.name.trim().isEmpty
+                                              ? 'د'
+                                              : d.name.trim().substring(0, 1),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: d.color,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${d.district} · $cnt عضو',
-                                      style: TextStyle(fontSize: 12, color: c.t3),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            d.name,
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: sel ? c.accent : c.t1,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            '${d.district} · $cnt عضو',
+                                            style: TextStyle(
+                                                fontSize: 12, color: c.t3),
+                                          ),
+                                        ],
+                                      ),
                                     ),
+                                    if (sel)
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 20,
+                                        color: c.accent,
+                                      ),
                                   ],
                                 ),
                               ),
-                              if (sel)
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  size: 20,
-                                  color: c.accent,
-                                ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -555,7 +639,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: _SwitchActionCard(
                         title: 'إنشاء ديوانية',
-                        subtitle: 'بدء ديوانية جديدة وإصدار رمز الدعوة الخاص بها',
+                        subtitle:
+                            'بدء ديوانية جديدة وإصدار رمز الدعوة الخاص بها',
                         icon: Icons.add_rounded,
                         onTap: _openCreateDiwaniyaOrWarn,
                       ),
@@ -608,53 +693,55 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => HomeNotificationsSheet(
-        notifs: (diwaniyaNotifications[_diwaniyaId] ?? []).where((n) => n.type != 'chat').toList(),
+        notifs: (diwaniyaNotifications[_diwaniyaId] ?? [])
+            .where((n) => n.type != 'chat')
+            .toList(),
         onTap: _onNotificationTap,
       ),
     );
   }
 
- void _openMembers() {
-  final diw = _diw;
-  if (diw == null) return;
+  void _openMembers() {
+    final diw = _diw;
+    if (diw == null) return;
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => HomeMembersSheet(
-      members: _members,
-      managerId: diw.managerId,
-      onAddMember: () {
-        Navigator.of(context).pop();
-        // Free-tier member limit gate
-        final status = EntitlementService.checkMemberLimit(_diwaniyaId);
-        if (status == LimitStatus.atLimit) {
-          PaywallService.trackEvent(
-            AnalyticsEvents.memberLimitHit,
-            properties: {'diwaniyaId': _diwaniyaId},
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => HomeMembersSheet(
+        members: _members,
+        managerId: diw.managerId,
+        onAddMember: () {
+          Navigator.of(context).pop();
+          // Free-tier member limit gate
+          final status = EntitlementService.checkMemberLimit(_diwaniyaId);
+          if (status == LimitStatus.atLimit) {
+            PaywallService.trackEvent(
+              AnalyticsEvents.memberLimitHit,
+              properties: {'diwaniyaId': _diwaniyaId},
+            );
+            PaywallService.showContextualPaywall(
+              context,
+              trigger: PaywallTrigger.memberLimit,
+              title: 'حد الأعضاء للنسخة المجانية',
+              message:
+                  'الخطة المجانية تسمح بـ ${EntitlementService.freeMaxMembers} أعضاء. للترقية اضغط على زر الترقية.',
+              icon: Icons.groups_rounded,
+            );
+            return;
+          }
+          context.push(
+            AppRoutes.inviteMember,
+            extra: InviteMemberArgs(
+              diwaniyaName: diw.name,
+              invitationCode: diw.invitationCode ?? '',
+            ),
           );
-          PaywallService.showContextualPaywall(
-            context,
-            trigger: PaywallTrigger.memberLimit,
-            title: 'حد الأعضاء للنسخة المجانية',
-            message:
-                'الخطة المجانية تسمح بـ ${EntitlementService.freeMaxMembers} أعضاء. للترقية اضغط على زر الترقية.',
-            icon: Icons.groups_rounded,
-          );
-          return;
-        }
-        context.push(
-          AppRoutes.inviteMember,
-          extra: InviteMemberArgs(
-            diwaniyaName: diw.name,
-            invitationCode: diw.invitationCode ?? '',
-          ),
-        );
-      },
-    ),
-  );
-}
+        },
+      ),
+    );
+  }
 
   void _openBalances() {
     showModalBottomSheet(
@@ -790,7 +877,8 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       if (!mounted) return;
       _snack('تعذر تسجيل التصويت. تحقق من الاتصال وحاول مرة أخرى');
-      await PollService.syncForDiwaniya(did, bumpVersion: false).catchError((_) {});
+      await PollService.syncForDiwaniya(did, bumpVersion: false)
+          .catchError((_) {});
       if (mounted) setState(() {});
     }
   }
@@ -861,7 +949,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 } catch (_) {
                   if (!mounted) return;
                   _snack('تعذر إنهاء التصويت. تحقق من الاتصال وحاول مرة أخرى');
-                  await PollService.syncForDiwaniya(did, bumpVersion: false).catchError((_) {});
+                  await PollService.syncForDiwaniya(did, bumpVersion: false)
+                      .catchError((_) {});
                   if (mounted) setState(() {});
                 }
               },
@@ -1148,117 +1237,129 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            backgroundColor: c.bg,
-            surfaceTintColor: Colors.transparent,
-            toolbarHeight: 64,
-            title: HomeHeaderSection(
-              diwaniyaName: diw.name,
-              district: diw.district,
-              unreadNotifs: _unreadNotifs,
-              onSwitchDiwaniya: _switchDiwaniya,
-              onOpenSettings: () => context.push(AppRoutes.settings),
-              onOpenNotifications: _openNotifications,
+            SliverAppBar(
+              floating: true,
+              snap: true,
+              backgroundColor: c.bg,
+              surfaceTintColor: Colors.transparent,
+              toolbarHeight: 64,
+              title: HomeHeaderSection(
+                diwaniyaName: diw.name,
+                district: diw.district,
+                unreadNotifs: _unreadNotifs,
+                onSwitchDiwaniya: _switchDiwaniya,
+                onOpenSettings: () => context.push(AppRoutes.settings),
+                onOpenNotifications: _openNotifications,
+              ),
             ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate(
-                [
-                  const SizedBox(height: 8),
-                  ..._buildGlobalSpotlightCards(context),
-                  if (_hasGlobalSpotlights) const SizedBox(height: 12),
-                  if (_activePoll != null)
-                    GestureDetector(
-                      onTap: _openPolls,
-                      child: HomePollBanner(
-                        poll: _activePoll!,
-                        activeCount: _activePolls,
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate(
+                  [
+                    const SizedBox(height: 8),
+                    ..._buildGlobalSpotlightCards(context),
+                    if (_hasGlobalSpotlights) const SizedBox(height: 12),
+                    if (_pendingJoinRequestCount > 0) ...[
+                      _HomeJoinRequestManagerBadge(
+                        count: _pendingJoinRequestCount,
+                        onTap: _openManagerJoinRequests,
                       ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: c.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: c.inputBg,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              Icons.how_to_vote_outlined,
-                              size: 18,
-                              color: c.t3,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'لا يوجد تصويت قائم حاليًا',
-                              style: TextStyle(
-                                fontSize: 12.8,
+                      const SizedBox(height: 12),
+                    ],
+                    if (_activePoll != null)
+                      GestureDetector(
+                        onTap: _openPolls,
+                        child: HomePollBanner(
+                          poll: _activePoll!,
+                          activeCount: _activePolls,
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: c.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: c.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: c.inputBg,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.how_to_vote_outlined,
+                                size: 18,
                                 color: c.t3,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'لا يوجد تصويت قائم حاليًا',
+                                style: TextStyle(
+                                  fontSize: 12.8,
+                                  color: c.t3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 16),
-                  if (_showUpgradeBanner) ...[
-                    _HomeUpgradeBanner(
-                      onTap: _openUpgradeFromBanner,
-                      onDismiss: _dismissUpgradeBanner,
-                    ),
                     const SizedBox(height: 16),
-                  ],
-                  HomeStatsSection(
-                    memberCount: AuthService.memberCountFor(_diwaniyaId, fallback: _members.length),
-                    balanceStr: balStr,
-                    balanceColor: bal >= 0 ? c.success : c.error,
-                    activePolls: _activePolls,
-                    maqadiNeeded: _maqadiNeeded,
-                    chatPreview: _chatPreview,
-                    chatSender: _chatSender,
-                    chatUnread: _chatUnread,
-                    albumCount: _albumCount,
-                    onOpenMembers: _openMembers,
-                    onOpenBalances: _openBalances,
-                    onOpenPolls: _openPolls,
-                    onOpenMaqadi: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const MaqadiScreen(initialFilter: 'needed')),
+                    if (_showUpgradeBanner) ...[
+                      _HomeUpgradeBanner(
+                        onTap: _openUpgradeFromBanner,
+                        onDismiss: _dismissUpgradeBanner,
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    HomeStatsSection(
+                      memberCount: _members.length,
+                      balanceStr: balStr,
+                      balanceColor: bal >= 0 ? c.success : c.error,
+                      activePolls: _activePolls,
+                      maqadiNeeded: _maqadiNeeded,
+                      chatPreview: _chatPreview,
+                      chatSender: _chatSender,
+                      chatUnread: _chatUnread,
+                      albumCount: _albumCount,
+                      onOpenMembers: _openMembers,
+                      onOpenBalances: _openBalances,
+                      onOpenPolls: _openPolls,
+                      onOpenMaqadi: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const MaqadiScreen(initialFilter: 'needed')),
+                      ),
+                      onOpenChat: () => context.push(AppRoutes.chat),
+                      onOpenAlbum: _openAlbum,
                     ),
-                    onOpenChat: () => context.push(AppRoutes.chat),
-                    onOpenAlbum: _openAlbum,
-                  ),
-                  const SizedBox(height: 24),
-                  HomeQuickActionsSection(
-                    onAddExpense: () => context.go(AppRoutes.expenses),
-                    onCreatePoll: _openCreatePoll,
-                    onAddMaqadi: () => context.go(AppRoutes.maqadi),
-                    onCapturePhoto: _capturePhotoQuick,
-                  ),
-                  const SizedBox(height: 24),
-                  HomeActivitySection(activities: _activities.where((a) => !a.type.startsWith('chat')).toList()),
-                  const SizedBox(height: 100),
-                ],
+                    const SizedBox(height: 24),
+                    HomeQuickActionsSection(
+                      onAddExpense: () => context.go(AppRoutes.expenses),
+                      onCreatePoll: _openCreatePoll,
+                      onAddMaqadi: () => context.go(AppRoutes.maqadi),
+                      onCapturePhoto: _capturePhotoQuick,
+                    ),
+                    const SizedBox(height: 24),
+                    HomeActivitySection(
+                        activities: _activities
+                            .where((a) => !a.type.startsWith('chat'))
+                            .toList()),
+                    const SizedBox(height: 100),
+                  ],
+                ),
               ),
             ),
-          ),
           ],
         ),
       ),
@@ -1352,6 +1453,89 @@ class _HomeUpgradeBanner extends StatelessWidget {
   }
 }
 
+class _HomeJoinRequestManagerBadge extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _HomeJoinRequestManagerBadge({
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: c.accent.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: c.accent.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded, color: c.accent),
+                  PositionedDirectional(
+                    top: -8,
+                    end: -10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: c.error,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        count > 99 ? '99+' : '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'طلبات انضمام بانتظارك',
+                      style: TextStyle(
+                        color: c.t1,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'راجع الطلبات وقم بالقبول أو الرفض',
+                      style: TextStyle(color: c.t2, fontSize: 12.2),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left_rounded, color: c.t3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _SwitchActionCard extends StatelessWidget {
   final String title;
