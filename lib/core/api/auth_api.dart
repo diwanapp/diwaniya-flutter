@@ -30,8 +30,13 @@ class OtpRequestResult {
 class AuthApi {
   AuthApi._();
 
+  static const bool _authLogsEnabled = bool.fromEnvironment(
+    'ENABLE_AUTH_LOGS',
+    defaultValue: false,
+  );
+
   static void _log(String message) {
-    if (!kDebugMode) return;
+    if (!kDebugMode || !_authLogsEnabled) return;
     debugPrint('[AuthApi] $message');
   }
 
@@ -76,7 +81,8 @@ class AuthApi {
     if (isNew is bool) return isNew;
 
     // Inverted "user exists" flags
-    final exists = body['user_exists'] ?? body['userExists'] ?? body['existing'];
+    final exists =
+        body['user_exists'] ?? body['userExists'] ?? body['existing'];
     if (exists is bool) return !exists;
 
     // Nested under common wrappers

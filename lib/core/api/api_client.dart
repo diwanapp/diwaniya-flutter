@@ -32,28 +32,82 @@ class ApiClient {
 
   static int _requestSequence = 0;
 
-  static bool get _debugEnabled => kDebugMode;
+  /// Network logs are disabled by default, even in debug, because request and
+  /// response bodies may contain tokens, phone numbers, messages, filenames,
+  /// or other user content. Enable intentionally during local troubleshooting:
+  ///
+  ///   --dart-define=ENABLE_NETWORK_LOGS=true
+  ///
+  /// Body previews remain disabled unless explicitly enabled with:
+  ///
+  ///   --dart-define=ENABLE_NETWORK_BODY_LOGS=true
+  static const bool _networkLogsEnabled = bool.fromEnvironment(
+    'ENABLE_NETWORK_LOGS',
+    defaultValue: false,
+  );
+
+  static const bool _networkBodyLogsEnabled = bool.fromEnvironment(
+    'ENABLE_NETWORK_BODY_LOGS',
+    defaultValue: false,
+  );
+
+  static bool get _debugEnabled => kDebugMode && _networkLogsEnabled;
+
+  static const Set<String> _sensitiveBodyKeys = <String>{
+    'access_token',
+    'refresh_token',
+    'token',
+    'authorization',
+    'otp',
+    'otp_code',
+    'code',
+    'password',
+    'mobile_number',
+    'phone',
+  };
 
   static void _log(String message) {
     if (!_debugEnabled) return;
     debugPrint('[ApiClient] $message');
   }
 
+  static Object? _redactForLog(Object? value) {
+    if (value is Map) {
+      return value.map((key, item) {
+        final normalized = key.toString().trim().toLowerCase();
+        if (_sensitiveBodyKeys.contains(normalized)) {
+          return MapEntry(key, '<redacted>');
+        }
+        return MapEntry(key, _redactForLog(item));
+      });
+    }
+    if (value is List) {
+      return value.map(_redactForLog).toList(growable: false);
+    }
+    return value;
+  }
+
   static String _previewBody(Object? value) {
     if (value == null) return '<empty>';
+    if (!_networkBodyLogsEnabled) return '<body omitted>';
     try {
-      final raw = jsonEncode(value);
+      final raw = jsonEncode(_redactForLog(value));
       return raw.length <= 600 ? raw : '${raw.substring(0, 600)}…';
     } catch (_) {
-      final raw = value.toString();
-      return raw.length <= 600 ? raw : '${raw.substring(0, 600)}…';
+      return '<unavailable>';
     }
   }
 
   static String _previewText(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return '<empty>';
+    if (!_networkBodyLogsEnabled) return '<body omitted>';
     return trimmed.length <= 600 ? trimmed : '${trimmed.substring(0, 600)}…';
+  }
+
+  static String _authStateForLog(bool authenticated) {
+    if (!authenticated) return 'n/a';
+    return TokenStorage.accessToken?.isNotEmpty == true ? 'present' : 'missing';
   }
 
   // ── Public API ──
@@ -118,7 +172,7 @@ class ApiClient {
         parsed != null && parsed.hasScheme ? parsed : _buildUri(path, null);
     final requestId = ++_requestSequence;
     _log(
-        '#$requestId → DOWNLOAD $uri auth=$authenticated token=${authenticated ? (TokenStorage.accessToken?.isNotEmpty == true ? 'present' : 'missing') : 'n/a'}');
+        '#$requestId → DOWNLOAD $uri auth=$authenticated token=${_authStateForLog(authenticated)}');
 
     HttpClientRequest request;
     try {
@@ -213,8 +267,7 @@ class ApiClient {
       await sink.close();
     }
 
-    _log(
-        '#$requestId ← download-status=${response.statusCode} bytes=$bytes file=${targetFile.path}');
+    _log('#$requestId ← download-status=${response.statusCode} bytes=$bytes');
     return targetFile;
   }
 
@@ -266,11 +319,12 @@ class ApiClient {
     final uri = _buildUri(path, null);
     final requestId = ++_requestSequence;
     _log(
-        '#$requestId → POST-MULTIPART $uri auth=$authenticated token=${authenticated ? (TokenStorage.accessToken?.isNotEmpty == true ? 'present' : 'missing') : 'n/a'}');
+        '#$requestId → POST-MULTIPART $uri auth=$authenticated token=${_authStateForLog(authenticated)}');
     if (fields != null && fields.isNotEmpty) {
-      _log('#$requestId fields=${fields.toString()}');
+      _log('#$requestId fields=${fields.keys.join(',')}');
     }
-    _log('#$requestId file=${file.path}');
+    _log(
+        '#$requestId file=${file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : '<unknown>'}');
 
     HttpClientRequest request;
     try {
@@ -355,7 +409,7 @@ class ApiClient {
     final requestId = ++_requestSequence;
 
     _log(
-        '#$requestId → $method $uri auth=$authenticated token=${authenticated ? (TokenStorage.accessToken?.isNotEmpty == true ? 'present' : 'missing') : 'n/a'}');
+        '#$requestId → $method $uri auth=$authenticated token=${_authStateForLog(authenticated)}');
     if (query != null && query.isNotEmpty) {
       _log('#$requestId query=${query.toString()}');
     }
