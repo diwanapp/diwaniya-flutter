@@ -15,7 +15,13 @@ import '../../l10n/ar.dart';
 /// every action + manual refresh.
 class ManagerJoinRequestsScreen extends StatefulWidget {
   final String diwaniyaId;
-  const ManagerJoinRequestsScreen({super.key, required this.diwaniyaId});
+  final String? diwaniyaName;
+
+  const ManagerJoinRequestsScreen({
+    super.key,
+    required this.diwaniyaId,
+    this.diwaniyaName,
+  });
 
   @override
   State<ManagerJoinRequestsScreen> createState() =>
@@ -236,6 +242,8 @@ class _ManagerJoinRequestsScreenState extends State<ManagerJoinRequestsScreen> {
     final id = (req['id'] as String?) ?? '';
     final name = (req['applicant_display_name'] as String?) ?? '';
     final phone = (req['applicant_mobile_number'] as String?) ?? '';
+    final diwaniyaName =
+        ((req['diwaniya_name'] as String?) ?? widget.diwaniyaName ?? '').trim();
     final initials = name.isNotEmpty ? name.substring(0, 1) : '?';
     final busy = _inFlight.contains(id);
 
@@ -265,6 +273,31 @@ class _ManagerJoinRequestsScreenState extends State<ManagerJoinRequestsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (diwaniyaName.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.groups_2_rounded,
+                          size: 13,
+                          color: c.accent,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'الديوانية: $diwaniyaName',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: c.accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                  ],
                   Text(name.isEmpty ? Ar.unknownName : name,
                       style: TextStyle(
                           fontSize: 14.5,

@@ -383,9 +383,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (did.isEmpty) return;
+    final diwaniyaName = _visibleDiwaniyas
+            .where((diwaniya) => diwaniya.id == did)
+            .firstOrNull
+            ?.name ??
+        '';
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ManagerJoinRequestsScreen(diwaniyaId: did),
+        builder: (_) => ManagerJoinRequestsScreen(
+          diwaniyaId: did,
+          diwaniyaName: diwaniyaName,
+        ),
       ),
     );
     if (!mounted) return;

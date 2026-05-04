@@ -80,6 +80,17 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
     }
   }
 
+  JoinRequest? get _latestResolvedRequest {
+    final resolved = _requests.where((r) => !r.isPending).toList();
+    if (resolved.isEmpty) return null;
+    resolved.sort((a, b) {
+      final aDate = a.resolvedAt ?? a.requestedAt;
+      final bDate = b.resolvedAt ?? b.requestedAt;
+      return bDate.compareTo(aDate);
+    });
+    return resolved.first;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
@@ -109,6 +120,10 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
             children: [
               _buildSummaryCard(c),
               const SizedBox(height: 12),
+              if (_latestResolvedRequest != null) ...[
+                _buildLatestResolutionBanner(c, _latestResolvedRequest!),
+                const SizedBox(height: 12),
+              ],
               _buildFilters(c),
               const SizedBox(height: 12),
               if (_loading && _requests.isEmpty)
@@ -213,12 +228,94 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
     );
   }
 
+  Widget _buildLatestResolutionBanner(CL c, JoinRequest request) {
+    final accepted = request.isApproved;
+    final color = accepted ? c.success : c.error;
+    final icon = accepted ? Icons.check_circle_rounded : Icons.cancel_rounded;
+    final title = accepted
+        ? 'تم قبول طلبك — يمكنك الآن الدخول إلى الديوانية'
+        : 'تم رفض طلب الانضمام';
+    final subtitle = accepted
+        ? _diwaniyaLabel(request)
+        : '${_diwaniyaLabel(request)} • يمكنك إرسال طلب جديد لاحقًا إذا كان الرمز متاحًا';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: c.t1,
+                    fontWeight: FontWeight.w800,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: c.t2, height: 1.5),
+                ),
+              ],
+            ),
+          ),
+          if (accepted)
+            TextButton(
+              onPressed: () => context.go(AuthService.nextRoute()),
+              child: Text('الدخول', style: TextStyle(color: c.accent)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _diwaniyaLabel(JoinRequest request) {
+    final name = request.diwaniyaName.trim();
+    final city = request.diwaniyaCity.trim();
+    if (name.isEmpty && city.isEmpty) return 'الديوانية';
+    if (city.isEmpty) return name;
+    if (name.isEmpty) return city;
+    return '$name • $city';
+  }
+
+  String _statusTitle(JoinRequest request) {
+    if (request.isApproved) {
+      return 'تم قبول طلبك';
+    }
+    if (request.isRejected) {
+      return 'تم رفض طلب الانضمام';
+    }
+    return 'طلبك قيد مراجعة المدير';
+  }
+
+  String _statusDescription(JoinRequest request) {
+    if (request.isApproved) {
+      return 'يمكنك الآن الدخول إلى الديوانية ومشاهدة محتواها كأي عضو آخر.';
+    }
+    if (request.isRejected) {
+      return 'لم تتم إضافتك إلى الديوانية. سيبقى الطلب محفوظًا في السجل للرجوع إليه.';
+    }
+    return 'تم إرسال الطلب للمدراء. ستتحدث الحالة هنا عند القبول أو الرفض.';
+  }
+
+  String _formatDate(DateTime value) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(value.day)}/${two(value.month)}/${value.year} ${two(value.hour)}:${two(value.minute)}';
+  }
+
   Widget _buildRequestCard(CL c, JoinRequest request) {
-    final statusText = request.isApproved
-        ? 'تم قبول الطلب'
-        : request.isRejected
-            ? 'تم رفض الطلب'
-            : 'قيد مراجعة المدير';
     final icon = request.isApproved
         ? Icons.check_circle_rounded
         : request.isRejected
@@ -229,6 +326,9 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
         : request.isRejected
             ? c.error
             : c.accent;
+    final statusTitle = _statusTitle(request);
+    final description = _statusDescription(request);
+    final resolvedAt = request.resolvedAt;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -238,37 +338,100 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: c.border),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  request.diwaniyaName.isNotEmpty
-                      ? request.diwaniyaName
-                      : 'ديوانية',
-                  style: TextStyle(
-                    color: c.t1,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14.5,
-                  ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  statusText,
-                  style: TextStyle(color: c.t2, height: 1.5),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _diwaniyaLabel(request),
+                      style: TextStyle(
+                        color: c.t1,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      statusTitle,
+                      style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              if (request.isApproved)
+                TextButton(
+                  onPressed: () => context.go(AuthService.nextRoute()),
+                  child: Text('الدخول', style: TextStyle(color: c.accent)),
+                ),
+            ],
           ),
-          if (request.isApproved)
-            TextButton(
-              onPressed: () => context.go(AuthService.nextRoute()),
-              child: Text('الدخول', style: TextStyle(color: c.accent)),
-            ),
+          const SizedBox(height: 10),
+          Text(
+            description,
+            style: TextStyle(color: c.t2, height: 1.65),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildMetaChip(
+                c,
+                Icons.schedule_rounded,
+                'أُرسل ${_formatDate(request.requestedAt)}',
+              ),
+              if (resolvedAt != null)
+                _buildMetaChip(
+                  c,
+                  request.isApproved
+                      ? Icons.verified_rounded
+                      : Icons.block_rounded,
+                  'حُسم ${_formatDate(resolvedAt)}',
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaChip(CL c, IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: c.inputBg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: c.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: c.t3),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(color: c.t3, fontSize: 12.5),
+          ),
         ],
       ),
     );
