@@ -54,7 +54,7 @@ class TermsOfUseScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('شروط الاستخدام'),
+        title: const Text('شروط الاستخدام'),
       ),
       body: const SafeArea(
         child: Padding(

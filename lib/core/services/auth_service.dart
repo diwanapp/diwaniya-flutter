@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
@@ -28,6 +27,7 @@ class AuthService {
   static const _otpVerifiedKey = 'otpVerified';
   static const _avatarKey = 'avatarSelected';
   static const _pendingCreateKey = 'pendingCreateDiwaniya';
+  static final Map<String, int> _memberCountByDiwaniya = <String, int>{};
 
   static UserProfile? get profile {
     final raw = SessionService.get<String>(_profileKey);
@@ -61,18 +61,6 @@ class AuthService {
   /// separately from approved memberships.
   static final List<JoinRequest> pendingJoinRequests = <JoinRequest>[];
 
-  /// Server-authoritative active member counts keyed by diwaniya id.
-  /// Used by switcher/settings before member lists are hydrated.
-  static final Map<String, int> diwaniyaMemberCounts = <String, int>{};
-
-  static int memberCountFor(String diwaniyaId, {int fallback = 0}) =>
-      diwaniyaMemberCounts[diwaniyaId] ?? fallback;
-
-  static bool isFounder(DiwaniyaInfo diwaniya) {
-    final creatorId = (diwaniya.creatorUserId ?? '').trim();
-    return creatorId.isNotEmpty && creatorId == currentUserId;
-  }
-
   static bool get hasPendingJoinRequest =>
       pendingJoinRequests.any((r) => r.isPending);
 
@@ -95,10 +83,8 @@ class AuthService {
       String lastName = existing?.lastName ?? '';
 
       if (serverDisplayName.isNotEmpty) {
-        final parts = serverDisplayName
-            .split(' ')
-            .where((s) => s.isNotEmpty)
-            .toList();
+        final parts =
+            serverDisplayName.split(' ').where((s) => s.isNotEmpty).toList();
         if (parts.isNotEmpty) {
           firstName = parts.first;
           lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
@@ -222,8 +208,7 @@ class AuthService {
 
       final incomingUserId = (user['id'] as String?)?.trim() ?? '';
       final existingUserId = existing?.userId.trim() ?? '';
-      final hasStableExistingIdentity =
-          otpVerified &&
+      final hasStableExistingIdentity = otpVerified &&
           existingUserId.isNotEmpty &&
           !existingUserId.startsWith('u_');
       final switchingAccounts = hasStableExistingIdentity &&
@@ -232,7 +217,8 @@ class AuthService {
 
       if (switchingAccounts) {
         final preservedAccessToken = accessToken;
-        final preservedRefreshToken = refreshToken is String ? refreshToken : '';
+        final preservedRefreshToken =
+            refreshToken is String ? refreshToken : '';
         await AppRepository.clearAllPersistedDomainData();
         await TokenStorage.save(
           accessToken: preservedAccessToken,
@@ -249,10 +235,8 @@ class AuthService {
       String lastName = existing?.lastName ?? '';
 
       if (serverDisplayName.isNotEmpty) {
-        final parts = serverDisplayName
-            .split(' ')
-            .where((s) => s.isNotEmpty)
-            .toList();
+        final parts =
+            serverDisplayName.split(' ').where((s) => s.isNotEmpty).toList();
         if (parts.isNotEmpty) {
           firstName = parts.first;
           lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
@@ -274,7 +258,8 @@ class AuthService {
       final mergedFullName = merged.fullName.trim();
       if (serverDisplayName.isEmpty && mergedFullName.isNotEmpty) {
         try {
-          final updated = await MeApi.updateProfile(displayName: mergedFullName);
+          final updated =
+              await MeApi.updateProfile(displayName: mergedFullName);
           final updatedName =
               ((updated['display_name'] as String?) ?? '').trim();
 
@@ -285,8 +270,9 @@ class AuthService {
             final refreshed = UserProfile(
               userId: (updated['id'] as String?) ?? merged.userId,
               firstName: parts.isNotEmpty ? parts.first : merged.firstName,
-              lastName:
-                  parts.length > 1 ? parts.sublist(1).join(' ') : merged.lastName,
+              lastName: parts.length > 1
+                  ? parts.sublist(1).join(' ')
+                  : merged.lastName,
               phone: (updated['mobile_number'] as String?) ?? merged.phone,
               avatarPresetId: merged.avatarPresetId,
               profileImagePath: merged.profileImagePath,
@@ -325,11 +311,19 @@ class AuthService {
 
       allDiwaniyas.clear();
       diwaniyaMembers.clear();
-      diwaniyaMemberCounts.clear();
+      _memberCountByDiwaniya.clear();
 
       for (final raw in serverDiwaniyas) {
         final id = (raw['id'] as String?) ?? '';
         if (id.isEmpty) continue;
+
+        final memberCountRaw = raw['member_count'];
+        final memberCount = memberCountRaw is num
+            ? memberCountRaw.toInt()
+            : int.tryParse(memberCountRaw?.toString() ?? '');
+        _memberCountByDiwaniya[id] = memberCount ??
+            diwaniyaMembers[id]?.length ??
+            _localMemberCountFor(id);
 
         final roleTypesRaw = raw['role_types'];
         final roleTypes = roleTypesRaw is List
@@ -342,10 +336,6 @@ class AuthService {
             : '';
 
         final existing = cachedDiwaniyas.where((d) => d.id == id).firstOrNull;
-        final rawMemberCount = raw['member_count'];
-        if (rawMemberCount is num) {
-          diwaniyaMemberCounts[id] = rawMemberCount.toInt();
-        }
 
         allDiwaniyas.add(
           DiwaniyaInfo(
@@ -353,14 +343,12 @@ class AuthService {
             name: (raw['name'] as String?) ?? existing?.name ?? '',
             city: (raw['city'] as String?) ?? existing?.city ?? '',
             district: (raw['district'] as String?) ?? existing?.district ?? '',
-            invitationCode:
-                (raw['invitation_code'] as String?) ??
+            invitationCode: (raw['invitation_code'] as String?) ??
                 existing?.invitationCode ??
                 '',
             color: existing?.color ?? AppColors.accent,
             managerId: managerId,
-            creatorUserId:
-                (raw['creator_user_id'] as String?) ??
+            creatorUserId: (raw['creator_user_id'] as String?) ??
                 existing?.creatorUserId ??
                 '',
             imagePath: existing?.imagePath,
@@ -599,6 +587,46 @@ class AuthService {
     await SessionService.put(_pendingCreateKey, null);
   }
 
+  static int _localMemberCountFor(String diwaniyaId) {
+    final id = diwaniyaId.trim();
+    if (id.isEmpty) return 0;
+    return diwaniyaMembers[id]?.length ?? 0;
+  }
+
+  static int memberCountFor(String diwaniyaId, {int? fallback}) {
+    final id = diwaniyaId.trim();
+    if (id.isEmpty) return fallback ?? 0;
+    final serverCount = _memberCountByDiwaniya[id];
+    if (serverCount != null && serverCount >= 0) {
+      return serverCount;
+    }
+    final localCount = _localMemberCountFor(id);
+    if (localCount > 0) {
+      return localCount;
+    }
+    return fallback ?? 0;
+  }
+
+  static bool isFounder(Object diwaniyaOrId) {
+    final currentUser = profile;
+    if (currentUser == null) return false;
+
+    if (diwaniyaOrId is DiwaniyaInfo) {
+      final creatorUserId = diwaniyaOrId.creatorUserId?.trim() ?? '';
+      return creatorUserId.isNotEmpty && creatorUserId == currentUser.userId;
+    }
+
+    final id = diwaniyaOrId.toString().trim();
+    if (id.isEmpty) return false;
+
+    for (final diwaniya in allDiwaniyas) {
+      if (diwaniya.id != id) continue;
+      final creatorUserId = diwaniya.creatorUserId?.trim() ?? '';
+      return creatorUserId.isNotEmpty && creatorUserId == currentUser.userId;
+    }
+    return false;
+  }
+
   static List<DiwaniyaInfo> getLocalDiwaniyaDirectory() {
     final box = Hive.box(HiveBoxes.diwaniyas);
     final raw = box.get('list');
@@ -659,6 +687,8 @@ class AuthService {
         userId: current.userId,
       ),
     ];
+    _memberCountByDiwaniya[diwaniyaId] =
+        diwaniyaMembers[diwaniyaId]?.length ?? 1;
 
     final rawMembers = draft['initialMembers'];
     if (rawMembers is List) {
@@ -727,7 +757,6 @@ class AuthService {
       final response = await DiwaniyaApi.create(
         name: name,
         city: city.isEmpty ? null : city,
-        invitationCode: invitationCode,
       );
 
       final serverId = response['id'];
@@ -740,8 +769,6 @@ class AuthService {
 
       final serverName = (response['name'] as String?) ?? name;
       final serverCity = (response['city'] as String?) ?? city;
-      final serverInvitationCode =
-          (response['invitation_code'] as String?) ?? invitationCode;
       final info = DiwaniyaInfo(
         id: serverId,
         name: serverName,
@@ -749,7 +776,7 @@ class AuthService {
         city: serverCity,
         managerId: current.userId,
         color: Color(colorValue ?? 0xFF000000),
-        invitationCode: serverInvitationCode,
+        invitationCode: invitationCode,
         creatorUserId: current.userId,
       );
 
@@ -826,8 +853,7 @@ class AuthService {
   }) async {
     final id = currentDiwaniyaId;
     if (id.isEmpty) return false;
-    if (plan != SubscriptionPlan.monthly &&
-        plan != SubscriptionPlan.yearly) {
+    if (plan != SubscriptionPlan.monthly && plan != SubscriptionPlan.yearly) {
       return false;
     }
 
@@ -1082,7 +1108,6 @@ class AuthService {
       }).toList();
 
       diwaniyaMembers[id] = mapped;
-      diwaniyaMemberCounts[id] = mapped.length;
 
       await AppRepository.saveDiwaniyas();
       dataVersion.value++;
@@ -1143,7 +1168,9 @@ class AuthService {
       return '/diwaniya-access';
     }
     if (!hasDiwaniya) {
-      return hasPendingJoinRequest ? '/join-request-pending' : '/diwaniya-access';
+      return hasPendingJoinRequest
+          ? '/join-request-pending'
+          : '/diwaniya-access';
     }
     return '/home';
   }

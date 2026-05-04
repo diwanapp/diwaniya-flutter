@@ -52,11 +52,13 @@ class HomePollsSheet extends StatelessWidget {
     final active = polls.where((p) => p.isActive).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final ended = polls.where((p) => !p.isActive).toList()
-      ..sort((a, b) => (b.closedAt ?? b.createdAt).compareTo(a.closedAt ?? a.createdAt));
+      ..sort((a, b) =>
+          (b.closedAt ?? b.createdAt).compareTo(a.closedAt ?? a.createdAt));
     final endedByMonth = _groupEndedByMonth(ended);
 
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.84),
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.84),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: c.card,
@@ -106,7 +108,7 @@ class HomePollsSheet extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: onCreatePoll,
                     icon: const Icon(Icons.add_rounded),
-                    label: Text(Ar.createPoll),
+                    label: const Text(Ar.createPoll),
                   ),
                 ],
               ),
@@ -119,7 +121,10 @@ class HomePollsSheet extends StatelessWidget {
                   if (active.isNotEmpty) ...[
                     Text(
                       'التصويتات القائمة',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.t3),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: c.t3),
                     ),
                     const SizedBox(height: 8),
                     ...active.map(
@@ -134,7 +139,10 @@ class HomePollsSheet extends StatelessWidget {
                     if (active.isNotEmpty) const SizedBox(height: 16),
                     Text(
                       Ar.ended,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.t3),
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: c.t3),
                     ),
                     const SizedBox(height: 8),
                     ...endedByMonth.entries.expand(
@@ -143,14 +151,18 @@ class HomePollsSheet extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 8, bottom: 8),
                           child: Text(
                             entry.key,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.t2),
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: c.t2),
                           ),
                         ),
                         ...entry.value.map(
                           (p) => HomePollCard(
                             poll: p,
                             isActive: false,
-                            onTap: onTapPoll != null ? () => onTapPoll!(p) : null,
+                            onTap:
+                                onTapPoll != null ? () => onTapPoll!(p) : null,
                           ),
                         ),
                       ],
@@ -180,7 +192,9 @@ class HomePollCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final pct = poll.totalMembers > 0 ? (poll.totalVotes / poll.totalMembers * 100).round() : 0;
+    final pct = poll.totalMembers > 0
+        ? (poll.totalVotes / poll.totalMembers * 100).round()
+        : 0;
     final myVote = poll.votedMembers[UserService.currentName];
 
     return GestureDetector(
@@ -192,7 +206,9 @@ class HomePollCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: isActive ? c.accentSurface : c.inputBg,
             borderRadius: BorderRadius.circular(14),
-            border: isActive ? Border.all(color: c.accent.withValues(alpha: 0.12)) : null,
+            border: isActive
+                ? Border.all(color: c.accent.withValues(alpha: 0.12))
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,10 +218,14 @@ class HomePollCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       poll.question,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: c.t1),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: c.t1),
                     ),
                   ),
-                  if (myVote != null) Icon(Icons.check_circle_rounded, size: 14, color: c.accent),
+                  if (myVote != null)
+                    Icon(Icons.check_circle_rounded, size: 14, color: c.accent),
                 ],
               ),
               const SizedBox(height: 8),
@@ -216,11 +236,14 @@ class HomePollCard extends StatelessWidget {
                   final v = poll.votesPerOption[o] ?? 0;
                   final isMine = myVote == o;
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: isMine ? c.accent.withValues(alpha: 0.12) : c.card,
                       borderRadius: BorderRadius.circular(6),
-                      border: isMine ? Border.all(color: c.accent.withValues(alpha: 0.3)) : null,
+                      border: isMine
+                          ? Border.all(color: c.accent.withValues(alpha: 0.3))
+                          : null,
                     ),
                     child: Text(
                       '$o ($v)',
@@ -252,7 +275,8 @@ class HomePollCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     '${poll.totalVotes}/${poll.totalMembers}',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: c.t3),
+                    style: TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w600, color: c.t3),
                   ),
                 ],
               ),

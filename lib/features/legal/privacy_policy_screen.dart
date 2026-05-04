@@ -173,7 +173,7 @@ info@diwaniya.online
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('سياسة الخصوصية'),
+        title: const Text('سياسة الخصوصية'),
       ),
       body: const SafeArea(
         child: Padding(
