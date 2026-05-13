@@ -53,7 +53,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _upgradeBannerDismissed = false;
   int _pendingJoinRequestCount = 0;
-  bool _joinRequestUpdatesDismissed = false;
   bool _isRefreshingHome = false;
   int _refreshGeneration = 0;
   String? _lastUpgradeBannerViewKey;
@@ -361,13 +360,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return const Color(0xFF60A5FA);
   }
 
-  List<dynamic> get _resolvedJoinRequestUpdates =>
-      AuthService.pendingJoinRequests.where((r) => !r.isPending).toList()
-        ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
-
   void _openMyJoinRequests() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const JoinRequestPendingScreen()),
+      MaterialPageRoute(
+        builder: (_) => const JoinRequestPendingScreen(
+          autoRedirectWhenResolved: false,
+        ),
+      ),
     );
   }
 
@@ -1356,9 +1355,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 diwaniyaName: diw.name,
                 district: diw.district,
                 unreadNotifs: _unreadNotifs,
+                myJoinRequestCount: AuthService.pendingJoinRequests
+                    .where((r) => r.isPending)
+                    .length,
                 onSwitchDiwaniya: _switchDiwaniya,
                 onOpenSettings: () => context.push(AppRoutes.settings),
                 onOpenNotifications: _openNotifications,
+                onOpenMyRequests: _openMyJoinRequests,
               ),
             ),
             SliverPadding(
@@ -1378,17 +1381,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               diwaniyaId: _diwaniyaId,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (_resolvedJoinRequestUpdates.isNotEmpty &&
-                        !_joinRequestUpdatesDismissed) ...[
-                      _HomeJoinRequestStatusStrip(
-                        count: _resolvedJoinRequestUpdates.length,
-                        onTap: _openMyJoinRequests,
-                        onDismiss: () => setState(
-                          () => _joinRequestUpdatesDismissed = true,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -1561,65 +1553,6 @@ class _HomeJoinRequestManagerBadge extends StatelessWidget {
             Icon(Icons.chevron_left_rounded, color: c.t2),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HomeJoinRequestStatusStrip extends StatelessWidget {
-  final int count;
-  final VoidCallback onTap;
-  final VoidCallback onDismiss;
-
-  const _HomeJoinRequestStatusStrip({
-    required this.count,
-    required this.onTap,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: c.inputBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.border),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.mark_email_read_rounded, size: 20, color: c.accent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              count == 1
-                  ? 'يوجد تحديث على أحد طلبات الانضمام'
-                  : 'يوجد $count تحديثات على طلبات الانضمام',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: c.t2,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: onTap,
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-            ),
-            child: const Text('طلباتي'),
-          ),
-          IconButton(
-            onPressed: onDismiss,
-            visualDensity: VisualDensity.compact,
-            icon: Icon(Icons.close_rounded, size: 18, color: c.t3),
-            tooltip: 'إخفاء',
-          ),
-        ],
       ),
     );
   }
