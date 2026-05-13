@@ -577,7 +577,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
                         itemCount: photos.length,
                         itemBuilder: (context, index) {
                           final photo = photos[index];
-                          final canModify = AlbumService.canDeletePhoto(photo);
+                          final canEdit = AlbumService.canEditCaption(photo);
+                          final canDelete = AlbumService.canDeletePhoto(photo);
                           return GestureDetector(
                             onTap: () => _openViewer(photo),
                             child: Container(
@@ -633,31 +634,35 @@ class _AlbumScreenState extends State<AlbumScreen> {
                                             ),
                                           ),
                                         ),
-                                        if (canModify)
+                                        if (canEdit || canDelete)
                                           Positioned(
                                             top: 8,
                                             left: 8,
                                             child: Row(
                                               children: [
-                                                _OverlayButton(
-                                                  icon: Icons
-                                                      .drive_file_move_rounded,
-                                                  onTap: () =>
-                                                      _movePhoto(photo),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                _OverlayButton(
-                                                  icon: Icons.edit_rounded,
-                                                  onTap: () =>
-                                                      _editCaption(photo),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                _OverlayButton(
-                                                  icon: Icons
-                                                      .delete_outline_rounded,
-                                                  onTap: () =>
-                                                      _confirmDelete(photo),
-                                                ),
+                                                if (canEdit) ...[
+                                                  _OverlayButton(
+                                                    icon: Icons
+                                                        .drive_file_move_rounded,
+                                                    onTap: () =>
+                                                        _movePhoto(photo),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  _OverlayButton(
+                                                    icon: Icons.edit_rounded,
+                                                    onTap: () =>
+                                                        _editCaption(photo),
+                                                  ),
+                                                ],
+                                                if (canEdit && canDelete)
+                                                  const SizedBox(width: 6),
+                                                if (canDelete)
+                                                  _OverlayButton(
+                                                    icon: Icons
+                                                        .delete_outline_rounded,
+                                                    onTap: () =>
+                                                        _confirmDelete(photo),
+                                                  ),
                                               ],
                                             ),
                                           ),

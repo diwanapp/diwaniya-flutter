@@ -8,6 +8,7 @@ import '../api/endpoints.dart';
 import '../api/token_storage.dart';
 import '../models/album_models.dart';
 import '../models/mock_data.dart';
+import 'user_service.dart';
 
 class AlbumService {
   AlbumService._();
@@ -104,7 +105,12 @@ class AlbumService {
 
   static bool canDelete(AlbumFolder folder) => !folder.isDefault;
 
-  static bool canDeletePhoto(AlbumPhoto photo) => !photo.isDeleted;
+  static bool canDeletePhoto(AlbumPhoto photo) {
+    if (photo.isDeleted) return false;
+    final ownerId = photo.capturedByUserId.trim();
+    return ownerId == UserService.currentId ||
+        UserService.isManager(photo.diwaniyaId);
+  }
 
   static bool canEditCaption(AlbumPhoto photo) => !photo.isDeleted;
 

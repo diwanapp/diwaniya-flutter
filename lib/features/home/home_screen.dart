@@ -255,11 +255,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 .map((e) => Map<String, dynamic>.from(e))
             : const <Map<String, dynamic>>[];
 
+    final activeDiwaniyaIds = allDiwaniyas
+        .map((d) => d.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final incomingPersonal = personal.where((n) {
+      final notificationDiwaniyaId =
+          ((n['diwaniya_id'] ?? '').toString().trim());
+      final type = (n['type'] ?? '').toString();
+      if (notificationDiwaniyaId == did) return true;
+
+      // Rejected join requests belong to a diwaniya the user is not a member of,
+      // so they may not have a matching home context after login. Surface them
+      // in the current notification sheet rather than dropping them silently.
+      return type.contains('join_request_rejected') &&
+          !activeDiwaniyaIds.contains(notificationDiwaniyaId);
+    });
+
     final incoming = <Map<String, dynamic>>[
       ...feedNotifications,
-      ...personal.where(
-        (n) => ((n['diwaniya_id'] ?? '').toString().trim()) == did,
-      ),
+      ...incomingPersonal,
     ];
     if (incoming.isEmpty) return;
 

@@ -153,6 +153,16 @@ class _ManagerJoinRequestsScreenState extends State<ManagerJoinRequestsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  String _stringField(Map<String, dynamic> req, List<String> keys) {
+    for (final key in keys) {
+      final value = req[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return '';
+  }
+
   String _arabicForError(ApiException e) {
     switch (e.code) {
       case 'not_a_manager':
@@ -240,8 +250,18 @@ class _ManagerJoinRequestsScreenState extends State<ManagerJoinRequestsScreen> {
 
   Widget _buildRequestTile(CL c, Map<String, dynamic> req) {
     final id = (req['id'] as String?) ?? '';
-    final name = (req['applicant_display_name'] as String?) ?? '';
-    final phone = (req['applicant_mobile_number'] as String?) ?? '';
+    final name = _stringField(req, const [
+      'applicant_display_name',
+      'requester_name',
+      'display_name',
+      'name',
+    ]);
+    final phone = _stringField(req, const [
+      'applicant_mobile_number',
+      'requester_phone',
+      'mobile_number',
+      'phone',
+    ]);
     final diwaniyaName =
         ((req['diwaniya_name'] as String?) ?? widget.diwaniyaName ?? '').trim();
     final initials = name.isNotEmpty ? name.substring(0, 1) : '?';
