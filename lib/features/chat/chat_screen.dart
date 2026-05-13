@@ -180,7 +180,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _setReply(ChatMessage msg) {
     setState(() => _replyTo = msg);
-    _focusNode.requestFocus();
+
+    // Keep the composer ready immediately after a reply gesture.
+    // Requesting focus after the reply preview is built avoids a first-tap/keyboard jitter.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusNode.requestFocus();
+    });
   }
 
   void _cancelReply() {
@@ -1402,19 +1408,33 @@ class _SwipeToReplyState extends State<_SwipeToReply> {
   bool _triggered = false;
 
   void _handleDragUpdate(DragUpdateDetails details) {
-    final isRtl = Directionality.of(context) == TextDirection.rtl;
+    if (_triggered) return;
+
     final delta = details.primaryDelta ?? 0;
-    final replyDelta = isRtl ? -delta : delta;
 
-    if (replyDelta <= 0) return;
+    // Reply is intentionally right-swipe only. Negative movement gently rolls back
+    // any in-progress offset instead of fighting the gesture.
+    if (delta <= 0) {
+      if (_dragOffset > 0) {
+        final nextOffset = (_dragOffset + delta).clamp(0, 64).toDouble();
+        if ((nextOffset - _dragOffset).abs() >= 0.6) {
+          setState(() => _dragOffset = nextOffset);
+        }
+      }
+      return;
+    }
 
-    setState(() {
-      _dragOffset = (_dragOffset + replyDelta).clamp(0, 64).toDouble();
-    });
+    // Small dead-zone to avoid jitter at the beginning of the swipe.
+    final nextOffset = (_dragOffset + delta).clamp(0, 64).toDouble();
+    if ((nextOffset - _dragOffset).abs() < 0.6) return;
 
-    if (!_triggered && _dragOffset >= 46) {
+    setState(() => _dragOffset = nextOffset);
+
+    if (_dragOffset >= 46) {
       _triggered = true;
+      HapticFeedback.lightImpact();
       widget.onReply();
+      _handleDragEnd();
     }
   }
 
@@ -1429,7 +1449,7 @@ class _SwipeToReplyState extends State<_SwipeToReply> {
   @override
   Widget build(BuildContext context) {
     final isRtl = Directionality.of(context) == TextDirection.rtl;
-    final signedOffset = isRtl ? -_dragOffset : _dragOffset;
+    final signedOffset = _dragOffset;
     final c = context.cl;
 
     return GestureDetector(
