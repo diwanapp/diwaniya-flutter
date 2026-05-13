@@ -28,7 +28,8 @@ class DiwaniyaManagementService {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
-  @Deprecated('Local approval flow superseded by backend demote endpoint. Use demoteMember.')
+  @Deprecated(
+      'Local approval flow superseded by backend demote endpoint. Use demoteMember.')
   static List<RoleChangeRequest> pendingForMe(String diwaniyaId) =>
       const <RoleChangeRequest>[];
 
@@ -37,7 +38,8 @@ class DiwaniyaManagementService {
       const <RoleChangeRequest>[];
 
   @Deprecated('Use demoteMember which goes directly through the backend.')
-  static RoleChangeRequest? requestDemotion(String diwaniyaId, String targetName) =>
+  static RoleChangeRequest? requestDemotion(
+          String diwaniyaId, String targetName) =>
       null;
 
   @Deprecated('No-op. Use demoteMember directly.')
@@ -51,9 +53,8 @@ class DiwaniyaManagementService {
 
   static bool isMemberManager(String diwaniyaId, String memberName) {
     final members = diwaniyaMembers[diwaniyaId] ?? [];
-    return members.any(
-      (m) => m.name == memberName && (m.role == 'manager' || m.role == 'founder'),
-    );
+    return members.any((m) =>
+        m.name == memberName && (m.role == 'manager' || m.role == 'founder'));
   }
 
   static int managerCount(String diwaniyaId) {
@@ -93,6 +94,7 @@ class DiwaniyaManagementService {
       city: newCity,
       managerId: old.managerId,
       color: old.color,
+      memberCount: old.memberCount,
       invitationCode: newCode,
       creatorUserId: old.creatorUserId,
       imagePath: newImage,
@@ -122,7 +124,8 @@ class DiwaniyaManagementService {
     dataVersion.value++;
   }
 
-  @Deprecated('No backend endpoint yet. Local removal only — will not sync to other devices.')
+  @Deprecated(
+      'No backend endpoint yet. Local removal only — will not sync to other devices.')
   static bool removeMember(String diwaniyaId, String memberName) {
     final members = diwaniyaMembers[diwaniyaId];
     if (members == null) return false;
@@ -155,22 +158,33 @@ class DiwaniyaManagementService {
     required String diwaniyaId,
     required String userId,
   }) async {
-    await DiwaniyaManagementApi.promote(
+    await DiwaniyaApi.promoteMember(
       diwaniyaId: diwaniyaId,
       userId: userId,
     );
-    await _refreshMembersFromServer(diwaniyaId);
+    await refreshMembersFromServer(diwaniyaId);
   }
 
   static Future<void> demoteMember({
     required String diwaniyaId,
     required String userId,
   }) async {
-    await DiwaniyaManagementApi.demote(
+    await DiwaniyaApi.demoteMember(
       diwaniyaId: diwaniyaId,
       userId: userId,
     );
-    await _refreshMembersFromServer(diwaniyaId);
+    await refreshMembersFromServer(diwaniyaId);
+  }
+
+  static Future<void> removeMemberById({
+    required String diwaniyaId,
+    required String userId,
+  }) async {
+    await DiwaniyaApi.removeMember(
+      diwaniyaId: diwaniyaId,
+      userId: userId,
+    );
+    await refreshMembersFromServer(diwaniyaId);
   }
 
   static Future<void> leaveDiwaniya(String diwaniyaId) async {
@@ -190,7 +204,7 @@ class DiwaniyaManagementService {
     return newCode;
   }
 
-  static Future<void> _refreshMembersFromServer(String diwaniyaId) async {
+  static Future<void> refreshMembersFromServer(String diwaniyaId) async {
     try {
       final serverMembers = await DiwaniyaApi.getMembers(diwaniyaId);
       final rebuilt = <DiwaniyaMember>[];
@@ -219,9 +233,11 @@ class DiwaniyaManagementService {
                 : (initialsParts.length == 1
                     ? initialsParts.first.substring(0, 1)
                     : '${initialsParts.first.substring(0, 1)}${initialsParts.last.substring(0, 1)}'),
-            role: isElevated ? 'manager' : 'member',
+            role: roleTypes.contains('founder')
+                ? 'founder'
+                : (isElevated ? 'manager' : 'member'),
             avatarColor: const Color(0xFF60A5FA),
-            joinedAt: DateTime.now(),
+            joinedAt: _parseDate(raw['joined_at']),
             userId: (raw['user_id'] as String?) ?? '',
           ),
         );
@@ -235,6 +251,14 @@ class DiwaniyaManagementService {
     } catch (_) {
       // Non-fatal.
     }
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    return DateTime.tryParse(raw);
   }
 
   static Future<void> _applyInvitationCodeLocally(
@@ -254,6 +278,7 @@ class DiwaniyaManagementService {
       city: old.city,
       managerId: old.managerId,
       color: old.color,
+      memberCount: old.memberCount,
       invitationCode: newCode,
       creatorUserId: old.creatorUserId,
       imagePath: old.imagePath,

@@ -8,7 +8,6 @@ import '../../config/theme/app_colors.dart';
 import '../../core/models/chat_models.dart';
 import '../../core/models/mock_data.dart';
 import '../../core/models/expense_models.dart';
-import '../../core/api/join_request_api.dart';
 import '../../core/services/expense_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/maqadi_service.dart';
@@ -20,10 +19,13 @@ import '../../core/services/notification_preferences_service.dart';
 import '../../core/services/entitlement_service.dart';
 import '../../core/services/paywall_service.dart';
 import '../../core/services/analytics_event_names.dart';
+import '../../core/api/join_request_api.dart';
+import '../../core/api/diwaniya_api.dart';
 import '../../core/repositories/app_repository.dart';
 import '../../core/navigation/app_routes.dart';
 import '../../l10n/ar.dart';
 import '../maqadi/maqadi_screen.dart';
+import '../welcome/join_request_pending_screen.dart';
 import '../settings/manager_join_requests_screen.dart';
 import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
@@ -50,10 +52,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _upgradeBannerDismissed = false;
+  int _pendingJoinRequestCount = 0;
+  bool _joinRequestUpdatesDismissed = false;
   bool _isRefreshingHome = false;
   int _refreshGeneration = 0;
-  int _pendingJoinRequestCount = 0;
-  Map<String, int> _pendingJoinRequestCountsByDiwaniya = const {};
   String? _lastUpgradeBannerViewKey;
   @override
   void initState() {
@@ -119,9 +121,9 @@ class _HomeScreenState extends State<HomeScreen> {
           bumpVersion: false,
           refreshUnread: false,
         ).catchError((_) {}),
+        _syncPendingJoinRequests(did).catchError((_) {}),
+        _syncServerNotifications(did).catchError((_) {}),
       ]);
-
-      await _syncPendingJoinRequests(did).catchError((_) {});
 
       if (!mounted || generation != _refreshGeneration) return;
       setState(() {});
@@ -183,6 +185,175 @@ class _HomeScreenState extends State<HomeScreen> {
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _syncPendingJoinRequests(String diwaniyaId) async {
+    final normalizedId = diwaniyaId.trim();
+    if (normalizedId.isEmpty) {
+      if (mounted) setState(() => _pendingJoinRequestCount = 0);
+      return;
+    }
+
+    try {
+      final requests =
+          await JoinRequestApi.listPendingForDiwaniya(normalizedId);
+      if (!mounted) return;
+      setState(() => _pendingJoinRequestCount = requests.length);
+    } catch (_) {
+      // Non-managers receive 403 here. The home screen should simply hide
+      // the manager-review badge rather than showing a technical error.
+      if (!mounted) return;
+      setState(() => _pendingJoinRequestCount = 0);
+    }
+  }
+
+  Future<void> _syncServerNotifications(String diwaniyaId) async {
+    final did = diwaniyaId.trim();
+    if (did.isEmpty) return;
+
+    final personal = await DiwaniyaApi.getMyNotifications();
+    final feed = await DiwaniyaApi.getFeed(did);
+    final feedActivitiesRaw = feed['activities'];
+    final Iterable<Map<String, dynamic>> feedActivities =
+        feedActivitiesRaw is List
+            ? feedActivitiesRaw
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+            : const <Map<String, dynamic>>[];
+
+    final activityMapped = <DiwaniyaActivity>[];
+    final seenActivityIds = <String>{};
+    for (final raw in feedActivities) {
+      final id = (raw['id'] ?? '').toString().trim();
+      final message = (raw['message'] ?? '').toString().trim();
+      if (id.isEmpty || message.isEmpty || !seenActivityIds.add(id)) continue;
+      final type = (raw['type'] ?? 'activity').toString();
+      activityMapped.add(
+        DiwaniyaActivity(
+          type: type,
+          diwaniyaId: did,
+          actor: (raw['actor'] ?? '').toString(),
+          message: message,
+          createdAt: DateTime.tryParse((raw['created_at'] ?? '').toString()) ??
+              DateTime.now(),
+          icon: _activityIcon(type),
+          iconColor: _activityColor(type),
+        ),
+      );
+    }
+    if (activityMapped.isNotEmpty) {
+      activityMapped.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      diwaniyaActivities[did] = activityMapped.take(80).toList();
+      await AppRepository.saveActivities();
+    }
+
+    final feedNotificationsRaw = feed['notifications'];
+    final Iterable<Map<String, dynamic>> feedNotifications =
+        feedNotificationsRaw is List
+            ? feedNotificationsRaw
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+            : const <Map<String, dynamic>>[];
+
+    final incoming = <Map<String, dynamic>>[
+      ...feedNotifications,
+      ...personal.where(
+        (n) => ((n['diwaniya_id'] ?? '').toString().trim()) == did,
+      ),
+    ];
+    if (incoming.isEmpty) return;
+
+    final existing = diwaniyaNotifications[did] ?? <DiwaniyaNotification>[];
+    final existingById = {for (final n in existing) n.id: n};
+
+    final mapped = <DiwaniyaNotification>[];
+    for (final raw in incoming) {
+      final id = (raw['id'] ?? '').toString().trim();
+      final message = (raw['message'] ?? '').toString().trim();
+      if (id.isEmpty || message.isEmpty) continue;
+      final type = (raw['type'] ?? 'activity').toString();
+      final old = existingById[id];
+      mapped.add(
+        DiwaniyaNotification(
+          id: id,
+          diwaniyaId: did,
+          message: message,
+          type: type,
+          createdAt: DateTime.tryParse((raw['created_at'] ?? '').toString()) ??
+              DateTime.now(),
+          isRead: old?.isRead ?? (raw['is_read'] == true),
+          icon: _notificationIcon(type),
+          iconColor: _notificationColor(type),
+          referenceId: raw['reference_id']?.toString(),
+        ),
+      );
+    }
+
+    final mergedById = {for (final n in existing) n.id: n};
+    for (final n in mapped) {
+      mergedById[n.id] = n;
+    }
+    final merged = mergedById.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    diwaniyaNotifications[did] = merged.take(80).toList();
+    await AppRepository.saveNotifications();
+  }
+
+  IconData _activityIcon(String type) {
+    if (type.contains('poll')) return Icons.how_to_vote_rounded;
+    if (type.contains('album') || type.contains('photo')) {
+      return Icons.photo_library_rounded;
+    }
+    if (type.contains('maqadi') || type.contains('shopping')) {
+      return Icons.shopping_cart_rounded;
+    }
+    if (type.contains('expense') || type.contains('settlement')) {
+      return Icons.account_balance_wallet_rounded;
+    }
+    if (type.contains('member') || type.contains('join')) {
+      return Icons.groups_rounded;
+    }
+    return Icons.history_rounded;
+  }
+
+  Color _activityColor(String type) {
+    if (type.contains('removed') || type.contains('deleted')) {
+      return const Color(0xFFF87171);
+    }
+    if (type.contains('maqadi') || type.contains('shopping')) {
+      return const Color(0xFFFBBF24);
+    }
+    if (type.contains('poll')) return const Color(0xFF60A5FA);
+    if (type.contains('album') || type.contains('photo')) {
+      return const Color(0xFF34D399);
+    }
+    return const Color(0xFF60A5FA);
+  }
+
+  IconData _notificationIcon(String type) {
+    if (type.contains('approved')) return Icons.check_circle_rounded;
+    if (type.contains('rejected')) return Icons.cancel_rounded;
+    if (type.contains('removed')) return Icons.person_remove_rounded;
+    if (type.contains('join')) return Icons.group_add_rounded;
+    return Icons.notifications_active_rounded;
+  }
+
+  Color _notificationColor(String type) {
+    if (type.contains('approved')) return const Color(0xFF34D399);
+    if (type.contains('rejected') || type.contains('removed')) {
+      return const Color(0xFFF87171);
+    }
+    return const Color(0xFF60A5FA);
+  }
+
+  List<dynamic> get _resolvedJoinRequestUpdates =>
+      AuthService.pendingJoinRequests.where((r) => !r.isPending).toList()
+        ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
+
+  void _openMyJoinRequests() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const JoinRequestPendingScreen()),
+    );
   }
 
   Future<void> _capturePhotoQuick() async {
@@ -316,89 +487,6 @@ class _HomeScreenState extends State<HomeScreen> {
   double get _myBalance =>
       ExpenseService.balanceFor(UserService.currentName, _diwaniyaId);
   int get _chatUnread => ChatService.unreadCount(_diwaniyaId);
-
-  bool _canManageDiwaniya(DiwaniyaInfo diwaniya) {
-    final currentName = UserService.currentName.trim();
-    final currentId = UserService.currentId.trim();
-
-    if (currentId.isNotEmpty &&
-        (diwaniya.managerId == currentId ||
-            diwaniya.creatorUserId == currentId ||
-            AuthService.isFounder(diwaniya))) {
-      return true;
-    }
-
-    final members = diwaniyaMembers[diwaniya.id] ?? const <DiwaniyaMember>[];
-    return members.any((m) {
-      final isCurrent = (currentId.isNotEmpty && m.userId == currentId) ||
-          (currentName.isNotEmpty && m.name == currentName);
-      final role = m.role.toLowerCase();
-      return isCurrent &&
-          (role == 'manager' || role == 'founder' || role == 'billing_owner');
-    });
-  }
-
-  Future<void> _syncPendingJoinRequests(String diwaniyaId) async {
-    final managed = _visibleDiwaniyas.where(_canManageDiwaniya).toList();
-    if (managed.isEmpty) {
-      if (mounted) {
-        setState(() {
-          _pendingJoinRequestCount = 0;
-          _pendingJoinRequestCountsByDiwaniya = const {};
-        });
-      }
-      return;
-    }
-
-    final counts = <String, int>{};
-    var total = 0;
-    for (final diwaniya in managed) {
-      try {
-        final rows = await JoinRequestApi.listPendingForDiwaniya(diwaniya.id);
-        counts[diwaniya.id] = rows.length;
-        total += rows.length;
-      } catch (_) {
-        counts[diwaniya.id] = 0;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _pendingJoinRequestCount = total;
-      _pendingJoinRequestCountsByDiwaniya = counts;
-    });
-  }
-
-  Future<void> _openManagerJoinRequests() async {
-    var did = _diwaniyaId;
-    final selectedCount = _pendingJoinRequestCountsByDiwaniya[did] ?? 0;
-    if (selectedCount == 0) {
-      final pendingIds = _pendingJoinRequestCountsByDiwaniya.entries
-          .where((entry) => entry.value > 0)
-          .map((entry) => entry.key)
-          .toList();
-      if (pendingIds.isNotEmpty) {
-        did = pendingIds.first;
-      }
-    }
-
-    if (did.isEmpty) return;
-    final diwaniyaName = _visibleDiwaniyas
-            .where((diwaniya) => diwaniya.id == did)
-            .firstOrNull
-            ?.name ??
-        '';
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ManagerJoinRequestsScreen(
-          diwaniyaId: did,
-          diwaniyaName: diwaniyaName,
-        ),
-      ),
-    );
-    if (!mounted) return;
-    await _syncPendingJoinRequests(did);
-  }
 
   ChatMessage? get _lastChatMessage => ChatService.lastMessage(_diwaniyaId);
 
@@ -555,10 +643,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           itemBuilder: (_, index) {
                             final d = _visibleDiwaniyas[index];
                             final sel = d.id == _diwaniyaId;
-                            final cnt = AuthService.memberCountFor(
-                              d.id,
-                              fallback: d.memberCount,
-                            );
+                            final cnt = AuthService.memberCountFor(d.id,
+                                fallback: d.memberCount);
                             return GestureDetector(
                               onTap: () async {
                                 final navigator = Navigator.of(context);
@@ -1271,7 +1357,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (_pendingJoinRequestCount > 0) ...[
                       _HomeJoinRequestManagerBadge(
                         count: _pendingJoinRequestCount,
-                        onTap: _openManagerJoinRequests,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ManagerJoinRequestsScreen(
+                              diwaniyaId: _diwaniyaId,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    if (_resolvedJoinRequestUpdates.isNotEmpty &&
+                        !_joinRequestUpdatesDismissed) ...[
+                      _HomeJoinRequestStatusStrip(
+                        count: _resolvedJoinRequestUpdates.length,
+                        onTap: _openMyJoinRequests,
+                        onDismiss: () => setState(
+                          () => _joinRequestUpdatesDismissed = true,
+                        ),
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -1375,6 +1478,138 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+class _HomeJoinRequestManagerBadge extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _HomeJoinRequestManagerBadge({
+    required this.count,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: c.accent.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: c.accent.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(Icons.person_add_alt_1_rounded, color: c.accent),
+                PositionedDirectional(
+                  top: -8,
+                  end: -10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.error,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                count == 1
+                    ? 'يوجد طلب انضمام بانتظار مراجعتك'
+                    : 'يوجد $count طلبات انضمام بانتظار مراجعتك',
+                style: TextStyle(
+                  color: c.t1,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_left_rounded, color: c.t2),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeJoinRequestStatusStrip extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+  final VoidCallback onDismiss;
+
+  const _HomeJoinRequestStatusStrip({
+    required this.count,
+    required this.onTap,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.inputBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.border),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.mark_email_read_rounded, size: 20, color: c.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? 'يوجد تحديث على أحد طلبات الانضمام'
+                  : 'يوجد $count تحديثات على طلبات الانضمام',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: c.t2,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: const Text('طلباتي'),
+          ),
+          IconButton(
+            onPressed: onDismiss,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.close_rounded, size: 18, color: c.t3),
+            tooltip: 'إخفاء',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HomeUpgradeBanner extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onDismiss;
@@ -1456,90 +1691,6 @@ class _HomeUpgradeBanner extends StatelessWidget {
             tooltip: Ar.notNow,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeJoinRequestManagerBadge extends StatelessWidget {
-  final int count;
-  final VoidCallback onTap;
-
-  const _HomeJoinRequestManagerBadge({
-    required this.count,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: c.accent.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: c.accent.withValues(alpha: 0.22)),
-          ),
-          child: Row(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(Icons.person_add_alt_1_rounded, color: c.accent),
-                  PositionedDirectional(
-                    top: -8,
-                    end: -10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: c.error,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        count > 99 ? '99+' : '$count',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'طلبات انضمام بانتظارك',
-                      style: TextStyle(
-                        color: c.t1,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'راجع الطلبات وقم بالقبول أو الرفض',
-                      style: TextStyle(color: c.t2, fontSize: 12.2),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_left_rounded, color: c.t3),
-            ],
-          ),
-        ),
       ),
     );
   }

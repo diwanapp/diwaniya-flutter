@@ -160,6 +160,63 @@ class DiwaniyaApi {
         .toList(growable: false);
   }
 
+  static Future<Map<String, dynamic>> removeMember({
+    required String diwaniyaId,
+    required String userId,
+  }) async {
+    final d = _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية');
+    final u = _normalizedRequiredId(userId, 'معرّف العضو');
+    final response = await ApiClient.post('/diwaniyas/$d/members/$u/remove');
+    return _expectMap(response, 'DiwaniyaApi.removeMember');
+  }
+
+  static Future<Map<String, dynamic>> promoteMember({
+    required String diwaniyaId,
+    required String userId,
+  }) async {
+    final d = _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية');
+    final u = _normalizedRequiredId(userId, 'معرّف العضو');
+    final response = await ApiClient.post('/diwaniyas/$d/members/$u/promote');
+    return _expectMap(response, 'DiwaniyaApi.promoteMember');
+  }
+
+  static Future<Map<String, dynamic>> demoteMember({
+    required String diwaniyaId,
+    required String userId,
+  }) async {
+    final d = _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية');
+    final u = _normalizedRequiredId(userId, 'معرّف العضو');
+    final response = await ApiClient.post('/diwaniyas/$d/members/$u/demote');
+    return _expectMap(response, 'DiwaniyaApi.demoteMember');
+  }
+
+  static Future<Map<String, dynamic>> getFeed(String diwaniyaId) async {
+    final d = _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية');
+    final response = await ApiClient.get('/diwaniyas/$d/feed');
+    return _expectMap(response, 'DiwaniyaApi.getFeed');
+  }
+
+  static Future<List<Map<String, dynamic>>> getMyNotifications() async {
+    final response = await ApiClient.get('/diwaniyas/user/notifications');
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(growable: false);
+    }
+    if (response is Map<String, dynamic>) {
+      final items =
+          response['notifications'] ?? response['items'] ?? response['data'];
+      if (items is List) {
+        return items
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList(growable: false);
+      }
+    }
+    return const <Map<String, dynamic>>[];
+  }
+
   // ── Helpers ──
 
   static Map<String, dynamic> _expectMap(dynamic response, String endpoint) {

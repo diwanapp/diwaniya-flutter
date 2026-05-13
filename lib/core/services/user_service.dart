@@ -15,7 +15,9 @@ class UserService {
     final members = diwaniyaMembers[did] ?? [];
     final me = members.where((m) => m.name == currentName).firstOrNull;
     if (me != null) {
-      return me.role == 'manager';
+      return me.role == 'manager' ||
+          me.role == 'founder' ||
+          me.role == 'billing_owner';
     }
     // Fallback: check creator/managerId
     final diw = allDiwaniyas.where((d) => d.id == did).firstOrNull;

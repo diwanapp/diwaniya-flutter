@@ -8,11 +8,11 @@ class DiwaniyaInfo {
   final String id, name, district, city, managerId;
   final String country;
   final int? expectedMembers;
+  final int? memberCount;
   final Color color;
   final String? invitationCode;
   final String? creatorUserId;
   final String? imagePath;
-  final int? memberCount;
 
   const DiwaniyaInfo({
     required this.id,
@@ -22,11 +22,11 @@ class DiwaniyaInfo {
     required this.managerId,
     this.country = 'السعودية',
     this.expectedMembers,
+    this.memberCount,
     required this.color,
     this.invitationCode,
     this.creatorUserId,
     this.imagePath,
-    this.memberCount,
   });
 }
 

@@ -42,6 +42,10 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
     _cityCtrl = TextEditingController(text: diw?.city ?? '');
     _districtCtrl = TextEditingController(text: diw?.district ?? '');
     dataVersion.addListener(_refresh);
+    Future.microtask(() async {
+      await DiwaniyaManagementService.refreshMembersFromServer(_did);
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -64,8 +68,14 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   List<DiwaniyaMember> get _sortedMembers {
     final list = List<DiwaniyaMember>.from(_members);
     list.sort((a, b) {
-      if (a.role == 'manager' && b.role != 'manager') return -1;
-      if (a.role != 'manager' && b.role == 'manager') return 1;
+      int rank(DiwaniyaMember m) {
+        if (m.role == 'founder') return 0;
+        if (m.role == 'manager') return 1;
+        return 2;
+      }
+
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
       return a.name.compareTo(b.name);
     });
     return list;
@@ -182,11 +192,24 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   }
 
   Future<void> _removeMember(DiwaniyaMember m) async {
+    final uid = m.userId;
+    if (uid == null || uid.isEmpty) {
+      _snack(Ar.errMemberNotSyncedYet);
+      return;
+    }
     final ok = await _confirm(Ar.removeConfirm);
     if (!ok || !mounted) return;
-    // ignore: deprecated_member_use_from_same_package
-    if (DiwaniyaManagementService.removeMember(_did, m.name)) {
+    try {
+      await DiwaniyaManagementService.removeMemberById(
+        diwaniyaId: _did,
+        userId: uid,
+      );
+      if (!mounted) return;
+      setState(() {});
       _snack(Ar.memberRemoved);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _snack(_arabicForError(e));
     }
   }
 
@@ -240,6 +263,10 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
         return Ar.errNotAManager;
       case 'last_manager':
         return Ar.errLastManager;
+      case 'founder_protected':
+        return 'لا يمكن تغيير صلاحية المؤسس';
+      case 'member_has_pending_dues':
+        return 'لا يمكن إزالة العضو لوجود مبالغ مستحقة له أو عليه';
       case 'sole_member_must_delete':
         return Ar.errSoleMemberMustDelete;
       case 'has_members':
@@ -676,10 +703,7 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
 
   Widget _buildMemberTile(CL c, DiwaniyaMember m) {
     final isMe = m.name == UserService.currentName;
-    final creatorUserId = _diw?.creatorUserId;
-    final isFounder = creatorUserId != null &&
-        creatorUserId.isNotEmpty &&
-        m.userId == creatorUserId;
+    final isFounder = m.role == 'founder';
     final isMgr = m.role == 'manager' || isFounder;
     final joinLabel = m.joinedAt != null
         ? '${m.joinedAt!.month.toString().padLeft(2, '0')}/${m.joinedAt!.year}'
@@ -745,7 +769,7 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
                       ),
                       child: Text(
                         isFounder
-                            ? 'مؤسس'
+                            ? 'المؤسس'
                             : (isMgr ? Ar.manager : Ar.memberUnit),
                         style: TextStyle(
                           fontSize: 10,
