@@ -88,7 +88,7 @@
 
 |---|---|---|---|---|
 
-| 1 | إنشاء صفحة حذف الحساب الخارجية على diwaniya.online/delete-account | لم يبدأ | Owner / Web | مطلوبة لـ Google Play ومهمة للامتثال |
+إنشاء صفحة حذف الحساب الخارجية على diwaniya.online/delete-account | مكتمل
 
 | 2 | تجهيز بيئة الإنتاج و HTTPS | لم يبدأ | Backend / DevOps | لا إطلاق بدون HTTPS |
 
