@@ -54,7 +54,9 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
       },
     );
 
-    if (result == null || result.trim().isEmpty || result.trim() == profile.phone) {
+    if (result == null ||
+        result.trim().isEmpty ||
+        result.trim() == profile.phone) {
       return;
     }
 
@@ -118,51 +120,73 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
   Future<void> _pickProfileImage() async {
     final c = context.cl;
     final source = await showModalBottomSheet<ImageSource>(
-      context: context, backgroundColor: Colors.transparent,
+      context: context,
+      backgroundColor: Colors.transparent,
       builder: (d) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: c.card,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+        decoration: BoxDecoration(
+            color: c.card,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20))),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(leading: Icon(Icons.camera_alt_rounded, color: c.accent),
+          ListTile(
+              leading: Icon(Icons.camera_alt_rounded, color: c.accent),
               title: Text('الكاميرا', style: TextStyle(color: c.t1)),
               onTap: () => Navigator.pop(d, ImageSource.camera)),
-          ListTile(leading: Icon(Icons.photo_library_rounded, color: c.accent),
+          ListTile(
+              leading: Icon(Icons.photo_library_rounded, color: c.accent),
               title: Text('المعرض', style: TextStyle(color: c.t1)),
               onTap: () => Navigator.pop(d, ImageSource.gallery)),
           if (AuthService.profileImagePath != null)
-            ListTile(leading: Icon(Icons.delete_outline_rounded, color: c.error),
-                title: Text(Ar.removeProfileImage, style: TextStyle(color: c.error)),
-                onTap: () { Navigator.pop(d); _removeProfileImage(); }),
+            ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: c.error),
+                title: Text(Ar.removeProfileImage,
+                    style: TextStyle(color: c.error)),
+                onTap: () {
+                  Navigator.pop(d);
+                  _removeProfileImage();
+                }),
         ]),
       ),
     );
-    if (source == null || !mounted) { return; }
+    if (source == null || !mounted) {
+      return;
+    }
 
     await Future.delayed(Duration.zero);
-    if (!mounted) { return; }
+    if (!mounted) {
+      return;
+    }
 
-    final picked = await ImagePicker().pickImage(source: source, maxWidth: 512, maxHeight: 512, imageQuality: 80);
-    if (picked == null || !mounted) { return; }
+    final picked = await ImagePicker().pickImage(
+        source: source, maxWidth: 512, maxHeight: 512, imageQuality: 80);
+    if (picked == null || !mounted) {
+      return;
+    }
 
     final dir = await getApplicationDocumentsDirectory();
     final filename = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final saved = await File(picked.path).copy('${dir.path}/$filename');
 
     await AuthService.updateProfileImage(saved.path);
-    if (!mounted) { return; }
+    if (!mounted) {
+      return;
+    }
     setState(() {});
     _snack(Ar.profileImageUpdated);
   }
 
   Future<void> _removeProfileImage() async {
     await AuthService.updateProfileImage(null);
-    if (!mounted) { return; }
+    if (!mounted) {
+      return;
+    }
     setState(() {});
     _snack(Ar.profileImageRemoved);
   }
 
-  List<DiwaniyaInfo> get _visibleDiwaniyas => List<DiwaniyaInfo>.from(allDiwaniyas);
+  List<DiwaniyaInfo> get _visibleDiwaniyas =>
+      List<DiwaniyaInfo>.from(allDiwaniyas);
 
   @override
   Widget build(BuildContext context) {
@@ -185,9 +209,11 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
               GestureDetector(
                 onTap: _pickProfileImage,
                 child: Stack(children: [
-                  if (profile?.profileImagePath != null && File(profile!.profileImagePath!).existsSync())
+                  if (profile?.profileImagePath != null &&
+                      File(profile!.profileImagePath!).existsSync())
                     Container(
-                      width: 80, height: 80,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(24),
                         image: DecorationImage(
@@ -198,7 +224,8 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
                     )
                   else
                     Container(
-                      width: 80, height: 80,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(colors: [
                           c.accent.withValues(alpha: 0.28),
@@ -208,21 +235,32 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
                       ),
                       child: Center(
                         child: Text(profile?.initials ?? 'ض',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: c.accent)),
+                            style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: c.accent)),
                       ),
                     ),
-                  Positioned(bottom: 0, left: 0,
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
                     child: Container(
-                      width: 26, height: 26,
-                      decoration: BoxDecoration(color: c.accent, borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.camera_alt_rounded, size: 14, color: c.tInverse),
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                          color: c.accent,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Icon(Icons.camera_alt_rounded,
+                          size: 14, color: c.tInverse),
                     ),
                   ),
                 ]),
               ),
               const SizedBox(height: 14),
               Text(
-                ((profile?.firstName ?? '').isNotEmpty ? profile!.fullName : Ar.account),
+                ((profile?.firstName ?? '').isNotEmpty
+                    ? profile!.fullName
+                    : Ar.account),
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -237,18 +275,23 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
             ]),
           ),
           const SizedBox(height: 28),
-
           _InfoCard(c: c, children: [
             _InfoRow(
               c: c,
               icon: Icons.person_rounded,
               label: Ar.account,
-              value: ((profile?.firstName ?? '').isNotEmpty ? profile!.fullName : ''),
+              value: ((profile?.firstName ?? '').isNotEmpty
+                  ? profile!.fullName
+                  : ''),
               trailing: TextButton.icon(
                 onPressed: _changeName,
                 icon: Icon(Icons.edit_rounded, size: 16, color: c.accent),
-                label: Text('تغيير',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c.accent),
+                label: Text(
+                  'تغيير',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: c.accent),
                 ),
               ),
             ),
@@ -299,7 +342,6 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
           Padding(
             padding: const EdgeInsets.only(right: 2, bottom: 8),
             child: Text(
@@ -323,14 +365,12 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
           else
             ..._visibleDiwaniyas.map((d) => _DiwaniyaRow(c: c, diw: d)),
           const SizedBox(height: 28),
-
           _DeleteAccountQuietCard(c: c),
         ],
       ),
     );
   }
 }
-
 
 class _DeleteAccountQuietCard extends StatelessWidget {
   final dynamic c;
@@ -639,7 +679,8 @@ class _InfoRow extends StatelessWidget {
           child: Icon(icon, size: 17, color: c.accent),
         ),
         const SizedBox(width: 12),
-        Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: c.t2))),
+        Expanded(
+            child: Text(label, style: TextStyle(fontSize: 14, color: c.t2))),
         Flexible(
           child: Text(
             value,
