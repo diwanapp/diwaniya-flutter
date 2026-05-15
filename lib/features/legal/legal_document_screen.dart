@@ -39,7 +39,7 @@ class LegalDocumentScreen extends StatelessWidget {
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return Center(
-                child: const CircularProgressIndicator(color: c.primary),
+                child: CircularProgressIndicator(color: c.primary),
               );
             }
 
