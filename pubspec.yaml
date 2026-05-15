@@ -26,6 +26,7 @@ dependencies:
   share_plus: ^10.0.2
   local_auth: ^3.0.1
   open_filex: ^4.7.0
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:

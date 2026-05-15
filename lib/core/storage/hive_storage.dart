@@ -1,5 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 
+import '../api/token_storage.dart';
+
 /// Box names for all app data.
 class HiveBoxes {
   HiveBoxes._();
@@ -38,4 +40,5 @@ Future<void> initStorage() async {
   await Hive.openBox(HiveBoxes.roleChangeRequests);
   await Hive.openBox(HiveBoxes.customCategories);
   await Hive.openBox(HiveBoxes.auth);
+  await TokenStorage.init();
 }
