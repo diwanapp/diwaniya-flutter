@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Runtime configuration for the API layer.
 ///
 /// [baseUrl] points at the active backend environment. For local dev this
@@ -21,6 +23,27 @@ abstract final class ApiConfig {
 
   /// Default connection timeout.
   static const Duration connectTimeout = Duration(seconds: 10);
+
+  /// Guard against unsafe API targets in release builds.
+  ///
+  /// Local HTTP/IP targets are allowed for debug/profile development, but a
+  /// production build must be pointed to an HTTPS backend such as
+  /// https://api.diwaniya.online.
+  static void assertProductionSafe() {
+    if (!kReleaseMode) return;
+
+    final uri = Uri.tryParse(baseUrl.trim());
+    final host = uri?.host.toLowerCase() ?? '';
+    final isPrivateIp = RegExp(
+      r'^(localhost|127\.0\.0\.1|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)',
+    ).hasMatch(host);
+
+    if (uri == null || uri.scheme.toLowerCase() != 'https' || isPrivateIp) {
+      throw StateError(
+        'Unsafe API_BASE_URL for release build. Use an HTTPS production API.',
+      );
+    }
+  }
 
   /// Development-only auth fallback. When true AND the app is running
   /// in debug mode, the auth/OTP flow degrades gracefully to a local

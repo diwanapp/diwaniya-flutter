@@ -515,6 +515,7 @@ class ApiClient {
   // ── Helpers ──
 
   static Uri _buildUri(String path, Map<String, String>? query) {
+    ApiConfig.assertProductionSafe();
     final base = ApiConfig.baseUrl.endsWith('/')
         ? ApiConfig.baseUrl.substring(0, ApiConfig.baseUrl.length - 1)
         : ApiConfig.baseUrl;

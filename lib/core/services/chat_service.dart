@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
+import '../api/api_config.dart';
 import '../api/token_storage.dart';
 import '../models/chat_models.dart';
 import '../models/mock_data.dart';
@@ -447,8 +448,5 @@ class ChatService {
 }
 
 class ApiClientBase {
-  static String get baseUrl => const String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue: 'http://localhost:8000',
-      );
+  static String get baseUrl => ApiConfig.baseUrl;
 }
