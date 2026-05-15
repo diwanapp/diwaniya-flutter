@@ -47,7 +47,8 @@ class ExpenseService {
 
   static final List<ExpenseCategory> _approvedDefaultCategories =
       defaultExpenseCategories
-          .where((category) => !_hiddenLegacyCategories.contains(category.name.trim()))
+          .where((category) =>
+              !_hiddenLegacyCategories.contains(category.name.trim()))
           .toList();
 
   static List<ExpenseCategory> categoriesForDiwaniya(String diwaniyaId) {
@@ -108,6 +109,31 @@ class ExpenseService {
   static double totalUnpaid([String? diwaniyaId]) =>
       max(0, totalMonth(diwaniyaId) - totalSettled(diwaniyaId));
 
+  static String? _memberUserIdByName(String diwaniyaId, String? name) {
+    final clean = (name ?? '').trim();
+    if (clean.isEmpty) return null;
+    final matches = (diwaniyaMembers[diwaniyaId] ?? const <DiwaniyaMember>[])
+        .where(
+            (m) => m.name.trim() == clean && (m.userId ?? '').trim().isNotEmpty)
+        .map((m) => m.userId!.trim())
+        .toSet();
+    return matches.length == 1 ? matches.first : null;
+  }
+
+  static Map<String, double> _shareUserIdsForNames(
+    String diwaniyaId,
+    Map<String, double> shares,
+  ) {
+    final out = <String, double>{};
+    shares.forEach((name, amount) {
+      final userId = _memberUserIdByName(diwaniyaId, name);
+      if (userId != null && userId.isNotEmpty) {
+        out[userId] = amount;
+      }
+    });
+    return out;
+  }
+
   static Future<void> syncForDiwaniya(
     String diwaniyaId, {
     bool force = false,
@@ -164,10 +190,12 @@ class ExpenseService {
       body: {
         'title': expense.title,
         'payer': expense.payer,
+        'payer_user_id': _memberUserIdByName(did, expense.payer),
         'category': expense.category,
         'split_type': expense.splitType,
         'amount': expense.amount,
         'shares': expense.shares,
+        'shares_user_ids': _shareUserIdsForNames(did, expense.shares),
         'note': expense.note,
         'receipt_path': expense.receiptPath,
       },
@@ -213,10 +241,12 @@ class ExpenseService {
       body: {
         'title': updated.title,
         'payer': updated.payer,
+        'payer_user_id': _memberUserIdByName(did, updated.payer),
         'category': updated.category,
         'split_type': updated.splitType,
         'amount': updated.amount,
         'shares': updated.shares,
+        'shares_user_ids': _shareUserIdsForNames(did, updated.shares),
         'note': updated.note,
         'receipt_path': updated.receiptPath,
       },
@@ -293,7 +323,9 @@ class ExpenseService {
       Endpoints.diwaniyaSettlements(did),
       body: {
         'from_name': from,
+        'from_user_id': _memberUserIdByName(did, from),
         'to_name': to,
+        'to_user_id': _memberUserIdByName(did, to),
         'amount': amount,
       },
     );
@@ -382,7 +414,8 @@ class ExpenseService {
     for (final e in exps) {
       for (final entry in e.shares.entries) {
         net.putIfAbsent(entry.key, () => <String, double>{});
-        net[entry.key]![e.payer] = (net[entry.key]![e.payer] ?? 0) + entry.value;
+        net[entry.key]![e.payer] =
+            (net[entry.key]![e.payer] ?? 0) + entry.value;
       }
     }
 
@@ -435,14 +468,20 @@ class ExpenseService {
     if (error is ApiException) {
       switch (error.code) {
         case ApiErrorCode.forbidden:
-          return error.message.isNotEmpty ? error.message : 'هذه العملية غير متاحة لك';
+          return error.message.isNotEmpty
+              ? error.message
+              : 'هذه العملية غير متاحة لك';
         case ApiErrorCode.validation:
-          return error.message.isNotEmpty ? error.message : 'بيانات المصروف غير صالحة';
+          return error.message.isNotEmpty
+              ? error.message
+              : 'بيانات المصروف غير صالحة';
         case ApiErrorCode.network:
         case ApiErrorCode.timeout:
           return 'تعذر الاتصال بالخادم';
         default:
-          return error.message.isNotEmpty ? error.message : 'تعذر إتمام العملية الآن';
+          return error.message.isNotEmpty
+              ? error.message
+              : 'تعذر إتمام العملية الآن';
       }
     }
     return 'تعذر إتمام العملية الآن';
@@ -470,7 +509,8 @@ class ExpenseService {
     };
   }
 
-  static Map<String, dynamic> _normalizeSettlementJson(Map<String, dynamic> raw) {
+  static Map<String, dynamic> _normalizeSettlementJson(
+      Map<String, dynamic> raw) {
     return <String, dynamic>{
       'id': raw['id'],
       'from': raw['from'] ?? raw['from_name'],

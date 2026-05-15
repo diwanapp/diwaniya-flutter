@@ -108,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
             .catchError((_) {}),
         AlbumService.syncForDiwaniya(did, bumpVersion: false)
             .catchError((_) {}),
+        ExpenseService.syncForDiwaniya(did).catchError((_) {}),
         PollService.syncForDiwaniya(
           did,
           endedLimit: 50,

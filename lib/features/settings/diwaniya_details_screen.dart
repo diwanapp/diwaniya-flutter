@@ -13,6 +13,7 @@ import '../../core/models/subscription_status.dart';
 import '../../core/navigation/app_routes.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/diwaniya_management_service.dart';
+import '../../core/services/expense_service.dart';
 import '../../core/services/subscription_service.dart';
 import '../../core/services/user_service.dart';
 import '../../l10n/ar.dart';
@@ -197,6 +198,19 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
       _snack(Ar.errMemberNotSyncedYet);
       return;
     }
+    try {
+      await ExpenseService.syncForDiwaniya(_did, force: true);
+      final pendingBalance = ExpenseService.balanceFor(m.name, _did).abs();
+      if (pendingBalance > 0.5) {
+        _snack(
+            'لا يمكن إزالة العضو لوجود رصيد قائم. يرجى تسوية المصاريف أولًا.');
+        return;
+      }
+    } catch (_) {
+      _snack('تعذر التحقق من رصيد العضو. حاول مرة أخرى.');
+      return;
+    }
+
     final ok = await _confirm(Ar.removeConfirm);
     if (!ok || !mounted) return;
     try {
@@ -266,7 +280,9 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
       case 'founder_protected':
         return 'لا يمكن تغيير صلاحية المؤسس';
       case 'member_has_pending_dues':
-        return 'لا يمكن إزالة العضو لوجود مبالغ مستحقة له أو عليه';
+        return 'لا يمكن إتمام الطلب حاليًا لوجود رصيد قائم. يرجى تسوية المصاريف أولًا، ثم إعادة المحاولة.';
+      case 'account_has_pending_dues':
+        return 'لا يمكن إتمام الطلب حاليًا لوجود رصيد قائم. يرجى تسوية المصاريف أولًا، ثم إعادة المحاولة.';
       case 'sole_member_must_delete':
         return Ar.errSoleMemberMustDelete;
       case 'has_members':

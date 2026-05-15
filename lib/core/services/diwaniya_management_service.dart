@@ -125,33 +125,13 @@ class DiwaniyaManagementService {
   }
 
   @Deprecated(
-      'No backend endpoint yet. Local removal only — will not sync to other devices.')
+      'Use removeMemberById so the backend can enforce balance and role guards.')
   static bool removeMember(String diwaniyaId, String memberName) {
-    final members = diwaniyaMembers[diwaniyaId];
-    if (members == null) return false;
-
-    final target = members.where((m) => m.name == memberName).firstOrNull;
-    if (target == null) return false;
-    if (target.role == 'manager' && managerCount(diwaniyaId) <= 1) {
-      return false;
-    }
-
-    members.removeWhere((m) => m.name == memberName);
-
-    final actor = UserService.currentName;
-    _activity(
-      diwaniyaId,
-      'member_removed',
-      '$actor أزال $memberName من الديوانية',
-      Icons.person_remove_rounded,
-      const Color(0xFFF87171),
+    debugPrint(
+      'BLOCKED legacy local removeMember(diwaniyaId=$diwaniyaId, memberName=$memberName). '
+      'Use removeMemberById so backend guards can run.',
     );
-
-    AppRepository.saveDiwaniyas();
-    AppRepository.saveActivities();
-    AppRepository.saveNotifications();
-    dataVersion.value++;
-    return true;
+    return false;
   }
 
   static Future<void> promoteMember({
@@ -180,6 +160,7 @@ class DiwaniyaManagementService {
     required String diwaniyaId,
     required String userId,
   }) async {
+    debugPrint('REMOVE_MEMBER_BY_ID diwaniyaId=$diwaniyaId userId=$userId');
     await DiwaniyaApi.removeMember(
       diwaniyaId: diwaniyaId,
       userId: userId,

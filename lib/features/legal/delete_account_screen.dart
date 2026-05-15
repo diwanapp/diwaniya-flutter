@@ -16,6 +16,19 @@ class DeleteAccountScreen extends StatefulWidget {
 class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   bool _isSubmitting = false;
 
+  String _deleteAccountErrorMessage(ApiException e) {
+    switch (e.code) {
+      case 'account_has_pending_dues':
+      case 'member_has_pending_dues':
+        return 'لا يمكن إتمام الطلب حاليًا لوجود رصيد قائم. يرجى تسوية المصاريف أولًا، ثم إعادة المحاولة.';
+      default:
+        final msg = e.message.trim();
+        return msg.isNotEmpty
+            ? msg
+            : 'تعذر حذف الحساب. تحقق من الاتصال وحاول مرة أخرى.';
+    }
+  }
+
   Future<void> _deleteAccount() async {
     if (_isSubmitting) return;
 
@@ -24,7 +37,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
           builder: (dialogContext) => AlertDialog(
             title: const Text('تأكيد حذف الحساب'),
             content: const Text(
-              'سيتم تعطيل حسابك وتسجيل خروجك من التطبيق. قد يتم الاحتفاظ ببعض السجلات لفترة محدودة وفق سياسة الخصوصية والمتطلبات النظامية. هل تريد المتابعة؟',
+              'سيتم تعطيل حسابك وتسجيل خروجك من التطبيق. قد يتم الاحتفاظ ببعض السجلات لفترة محدودة وفق سياسة الخصوصية والمتطلبات النظامية. لا يمكن إتمام الحذف إذا كان لك أو عليك رصيد قائم في أي ديوانية. هل تريد المتابعة؟',
               textAlign: TextAlign.right,
             ),
             actions: [
@@ -64,7 +77,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
       setState(() => _isSubmitting = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        SnackBar(content: Text(_deleteAccountErrorMessage(e))),
       );
     } catch (_) {
       if (!mounted) return;
@@ -105,7 +118,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'عند تأكيد حذف الحساب سيتم تعطيل حسابك وتسجيل خروجك من التطبيق. لا يتم حذف بيانات الديوانيات بشكل عشوائي حتى لا تتأثر حقوق أو سجلات الأعضاء الآخرين، ويتم التعامل مع البيانات وفق سياسة الخصوصية والمتطلبات النظامية.',
+              'عند تأكيد حذف الحساب سيتم تعطيل حسابك وتسجيل خروجك من التطبيق. لا يتم حذف بيانات الديوانيات بشكل عشوائي حتى لا تتأثر حقوق أو سجلات الأعضاء الآخرين، ويتم التعامل مع البيانات وفق سياسة الخصوصية والمتطلبات النظامية. إذا كان لك أو عليك رصيد قائم في أي ديوانية، يجب تسوية المصاريف أولًا قبل إتمام حذف الحساب.',
               textAlign: TextAlign.right,
               style: TextStyle(height: 1.7),
             ),
