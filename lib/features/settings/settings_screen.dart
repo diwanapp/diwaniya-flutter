@@ -14,8 +14,7 @@ import '../../core/services/paywall_service.dart';
 import '../../core/services/subscription_service.dart';
 import '../../core/services/user_service.dart';
 import '../../l10n/ar.dart';
-import '../legal/privacy_policy_screen.dart';
-import '../legal/terms_of_use_screen.dart';
+import '../legal/legal_center_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -208,8 +207,7 @@ class SettingsScreen extends StatelessWidget {
                               ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.stretch,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
@@ -261,7 +259,8 @@ class SettingsScreen extends StatelessWidget {
                       }
 
                       if (target == null || !context.mounted) return;
-                      await InviteShareService.shareForDiwaniya(context, target);
+                      await InviteShareService.shareForDiwaniya(
+                          context, target);
                     },
                   ),
                   Divider(height: 1, color: c.divider, indent: 56),
@@ -282,21 +281,10 @@ class SettingsScreen extends StatelessWidget {
                   _ToolRow(
                     c: c,
                     icon: Icons.privacy_tip_outlined,
-                    label: 'سياسة الخصوصية',
+                    label: 'الخصوصية والشروط',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const PrivacyPolicyScreen(),
-                      ),
-                    ),
-                  ),
-                  Divider(height: 1, color: c.divider, indent: 56),
-                  _ToolRow(
-                    c: c,
-                    icon: Icons.description_outlined,
-                    label: 'شروط الاستخدام',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TermsOfUseScreen(),
+                        builder: (_) => const LegalCenterScreen(),
                       ),
                     ),
                   ),
@@ -353,7 +341,8 @@ class _DiwaniyaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final members = diwaniyaMembers[diw.id] ?? [];
-    final memberCount = AuthService.memberCountFor(diw.id, fallback: members.length);
+    final memberCount =
+        AuthService.memberCountFor(diw.id, fallback: members.length);
     final isFounder = AuthService.isFounder(diw);
     final isManager = UserService.isManager(diw.id);
     final rawSub = SubscriptionService.forDiwaniya(diw.id);
@@ -427,7 +416,8 @@ class _DiwaniyaCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _RoleBadge(c: c, isManager: isManager, isFounder: isFounder),
+                        _RoleBadge(
+                            c: c, isManager: isManager, isFounder: isFounder),
                         if (sub != null) ...[
                           const SizedBox(width: 6),
                           _SubBadge(c: c, sub: sub),
@@ -452,7 +442,8 @@ class _RoleBadge extends StatelessWidget {
   final CL c;
   final bool isManager;
   final bool isFounder;
-  const _RoleBadge({required this.c, required this.isManager, required this.isFounder});
+  const _RoleBadge(
+      {required this.c, required this.isManager, required this.isFounder});
 
   @override
   Widget build(BuildContext context) {
@@ -663,8 +654,9 @@ class _ThemeChip extends StatelessWidget {
             decoration: BoxDecoration(
               color: sel ? c.accentMuted : c.inputBg,
               borderRadius: BorderRadius.circular(10),
-              border:
-                  sel ? Border.all(color: c.accent.withValues(alpha: 0.4)) : null,
+              border: sel
+                  ? Border.all(color: c.accent.withValues(alpha: 0.4))
+                  : null,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
