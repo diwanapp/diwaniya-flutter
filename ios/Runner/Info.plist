@@ -51,7 +51,5 @@
 	<string>نحتاج إذن حفظ الصور عند التقاط أو معالجة صور الديوانية داخل التطبيق.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>نستخدم Face ID أو البصمة لحماية الوصول إلى حسابك داخل التطبيق.</string>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>نستخدم الشبكة المحلية فقط أثناء الاختبار للوصول إلى خادم التطوير.</string>
 </dict>
 </plist>
