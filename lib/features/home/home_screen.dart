@@ -871,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-  void _openCreateCalendarEvent({DiwaniyaCalendarEvent? initial}) {
+  void _openCreateCalendarEvent({DiwaniyaCalendarEvent? initial, DateTime? initialDate}) {
     final did = _diwaniyaId;
     if (did.isEmpty) return;
 
@@ -1564,7 +1564,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     HomeCalendarSection(
                       events: _calendarEvents,
                       isManager: UserService.isManager(),
-                      onCreate: _openCreateCalendarEvent,
+                      onCreate: (day) => _openCreateCalendarEvent(initialDate: day),
                       onAttendToggle: _toggleCalendarAttendance,
                       onEdit: (event) => _openCreateCalendarEvent(initial: event),
                       onDelete: _deleteCalendarEvent,
