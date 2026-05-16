@@ -12,6 +12,7 @@ import '../../core/services/expense_service.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/maqadi_service.dart';
 import '../../core/services/poll_service.dart';
+import '../../core/services/calendar_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/services/chat_service.dart';
 import '../../core/services/album_service.dart';
@@ -33,6 +34,7 @@ import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
 import 'widgets/home_handle.dart';
 import 'widgets/home_poll_banner.dart';
+import 'widgets/home_calendar_section.dart';
 import 'widgets/home_notifications_sheet.dart';
 import 'widgets/home_members_sheet.dart';
 import 'widgets/home_balances_sheet.dart';
@@ -109,6 +111,8 @@ class _HomeScreenState extends State<HomeScreen> {
         AlbumService.syncForDiwaniya(did, bumpVersion: false)
             .catchError((_) {}),
         ExpenseService.syncForDiwaniya(did).catchError((_) {}),
+        CalendarService.syncForDiwaniya(did, bumpVersion: false)
+            .catchError((_) {}),
         PollService.syncForDiwaniya(
           did,
           endedLimit: 50,
@@ -485,6 +489,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _hasDiwaniya => _diwaniyaId.isNotEmpty && _diw != null;
   List<DiwaniyaMember> get _members => diwaniyaMembers[_diwaniyaId] ?? [];
   List<DiwaniyaPoll> get _polls => diwaniyaPolls[_diwaniyaId] ?? [];
+  List<DiwaniyaCalendarEvent> get _calendarEvents =>
+      diwaniyaCalendarEvents[_diwaniyaId] ?? [];
   List<DiwaniyaActivity> get _activities =>
       diwaniyaActivities[_diwaniyaId] ?? [];
   List<DiwaniyaNotification> get _notifs =>
@@ -863,6 +869,175 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+
+  void _openCreateCalendarEvent({DiwaniyaCalendarEvent? initial}) {
+    final did = _diwaniyaId;
+    if (did.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => HomeCalendarEventSheet(
+        initial: initial,
+        onSave: (draft) async {
+          try {
+            if (initial == null) {
+              final created = await CalendarService.createEvent(
+                did,
+                title: draft.title,
+                description: draft.description,
+                startsAt: draft.startsAt,
+                endsAt: draft.endsAt,
+                location: draft.location,
+              );
+              if (!mounted) return;
+              _addActivity(
+                'calendar_event_created',
+                UserService.currentName,
+                'مناسبة جديدة — ${created.title}',
+                Icons.event_available_rounded,
+                const Color(0xFF38BDF8),
+              );
+              _addNotif(
+                'مناسبة جديدة — ${created.title}',
+                'calendar',
+                Icons.event_available_rounded,
+                const Color(0xFF38BDF8),
+                referenceId: created.id,
+              );
+              _snack('تمت إضافة المناسبة');
+            } else {
+              final updated = await CalendarService.updateEvent(
+                did,
+                initial.id,
+                title: draft.title,
+                description: draft.description,
+                startsAt: draft.startsAt,
+                endsAt: draft.endsAt,
+                location: draft.location,
+              );
+              if (!mounted) return;
+              _addActivity(
+                'calendar_event_updated',
+                UserService.currentName,
+                'تم تعديل مناسبة — ${updated.title}',
+                Icons.event_note_rounded,
+                const Color(0xFF60A5FA),
+              );
+              _addNotif(
+                'تم تعديل مناسبة — ${updated.title}',
+                'calendar',
+                Icons.event_note_rounded,
+                const Color(0xFF60A5FA),
+                referenceId: updated.id,
+              );
+              _snack('تم تعديل المناسبة');
+            }
+
+            await _persistHomeFeed();
+            if (!mounted) return;
+            setState(() {});
+          } catch (_) {
+            if (!mounted) return;
+            _snack('تعذر حفظ المناسبة. تحقق من الاتصال وحاول مرة أخرى');
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _toggleCalendarAttendance(DiwaniyaCalendarEvent event) async {
+    final did = _diwaniyaId;
+    if (did.isEmpty) return;
+
+    try {
+      final updated = await CalendarService.setAttendance(
+        did,
+        event.id,
+        attending: !event.isAttending,
+      );
+      if (!mounted) return;
+      _snack(updated.isAttending ? 'تم تسجيل حضورك' : 'تم إلغاء حضورك');
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر تحديث الحضور. تحقق من الاتصال وحاول مرة أخرى');
+    }
+  }
+
+  void _deleteCalendarEvent(DiwaniyaCalendarEvent event) {
+    showDialog(
+      context: context,
+      builder: (d) {
+        final dc = d.cl;
+        return AlertDialog(
+          backgroundColor: dc.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'حذف المناسبة',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: dc.t1,
+            ),
+          ),
+          content: Text(
+            'هل تريد حذف "${event.title}"؟',
+            style: TextStyle(color: dc.t2),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d),
+              child: Text('إلغاء', style: TextStyle(color: dc.t2)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(d);
+                final did = _diwaniyaId;
+                if (did.isEmpty) return;
+
+                try {
+                  await CalendarService.deleteEvent(did, event.id);
+                  if (!mounted) return;
+                  _addActivity(
+                    'calendar_event_deleted',
+                    UserService.currentName,
+                    'تم حذف مناسبة — ${event.title}',
+                    Icons.event_busy_rounded,
+                    const Color(0xFFF87171),
+                  );
+                  _addNotif(
+                    'تم حذف مناسبة — ${event.title}',
+                    'calendar',
+                    Icons.event_busy_rounded,
+                    const Color(0xFFF87171),
+                    referenceId: event.id,
+                  );
+                  await _persistHomeFeed();
+                  if (!mounted) return;
+                  setState(() {});
+                  _snack('تم حذف المناسبة');
+                } catch (_) {
+                  if (!mounted) return;
+                  _snack('تعذر حذف المناسبة');
+                }
+              },
+              child: Text(
+                'حذف',
+                style: TextStyle(
+                  color: dc.error,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   Future<void> _openPolls() async {
     final did = _diwaniyaId;
@@ -1386,54 +1561,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    if (_activePoll != null)
+                    HomeCalendarSection(
+                      events: _calendarEvents,
+                      isManager: UserService.isManager(),
+                      onCreate: _openCreateCalendarEvent,
+                      onAttendToggle: _toggleCalendarAttendance,
+                      onEdit: (event) => _openCreateCalendarEvent(initial: event),
+                      onDelete: _deleteCalendarEvent,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_activePoll != null) ...[
                       GestureDetector(
                         onTap: _openPolls,
                         child: HomePollBanner(
                           poll: _activePoll!,
                           activeCount: _activePolls,
                         ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: c.card,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: c.border),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              decoration: BoxDecoration(
-                                color: c.inputBg,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.how_to_vote_outlined,
-                                size: 18,
-                                color: c.t3,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'لا يوجد تصويت قائم حاليًا',
-                                style: TextStyle(
-                                  fontSize: 12.8,
-                                  color: c.t3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
+                    ],
                     if (_showUpgradeBanner) ...[
                       _HomeUpgradeBanner(
                         onTap: _openUpgradeFromBanner,
