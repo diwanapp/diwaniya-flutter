@@ -90,9 +90,9 @@
 
 إنشاء صفحة حذف الحساب الخارجية على diwaniya.online/delete-account | مكتمل
 
-| 2 | تجهيز بيئة الإنتاج و HTTPS | لم يبدأ | Backend / DevOps | لا إطلاق بدون HTTPS |
+تجهيز بيئة الإنتاج و HTTPS | مكتمل
+التأكد من عدم وجود localhost أو IP داخلي في نسخة الإنتاج | مكتمل مبدئيًا
 
-| 3 | التأكد من عدم وجود localhost أو IP داخلي في نسخة الإنتاج | لم يبدأ | Flutter / Backend | فحص release config |
 
 | 4 | مراجعة صلاحيات Android و iOS | لم يبدأ | Flutter | كاميرا، صور، ملفات، ميكروفون، إشعارات |
 
@@ -277,4 +277,9 @@
 3\. فحص إعدادات release.
 
 4\. تجهيز Apple / Google privacy forms.
+
+
+
+
+تم تشغيل الباكند على Render وربطه بالدومين الرسمي https://api.diwaniya.online، وتم اختبار health/healthz/readyz بنجاح.
 
