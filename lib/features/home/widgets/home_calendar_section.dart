@@ -151,6 +151,24 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     setState(() => _selectedDay = _startOfDay(day));
   }
 
+  void _goToday() {
+    setState(() => _selectedDay = _startOfDay(DateTime.now()));
+  }
+
+  bool _canAddForSelectedDay() {
+    return _eventsForDay(_selectedDay).length < 4;
+  }
+
+  void _createForSelectedDay() {
+    if (!_canAddForSelectedDay()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('نكتفي بمناسبات اليوم')),
+      );
+      return;
+    }
+    widget.onCreate(_selectedDay);
+  }
+
   void _openMonthPicker() {
     showModalBottomSheet(
       context: context,
@@ -195,8 +213,9 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             headline: _headlineText(),
             summary: _summaryText(),
             attendanceCount: attendanceCount,
+            onToday: _goToday,
             onMonth: _openMonthPicker,
-            onCreate: () => widget.onCreate(_selectedDay),
+            onCreate: _createForSelectedDay,
           ),
           const SizedBox(height: 14),
           _WeekStrip(
@@ -210,7 +229,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             selectedDay: _selectedDay,
             events: selectedEvents,
             canManage: _canManage,
-            onCreate: () => widget.onCreate(_selectedDay),
+            onCreate: _createForSelectedDay,
             onAttendToggle: widget.onAttendToggle,
             onEdit: widget.onEdit,
             onDelete: widget.onDelete,
@@ -227,6 +246,7 @@ class _CalendarTopBar extends StatelessWidget {
   final String headline;
   final String summary;
   final int attendanceCount;
+  final VoidCallback onToday;
   final VoidCallback onMonth;
   final VoidCallback onCreate;
 
@@ -235,6 +255,7 @@ class _CalendarTopBar extends StatelessWidget {
     required this.headline,
     required this.summary,
     required this.attendanceCount,
+    required this.onToday,
     required this.onMonth,
     required this.onCreate,
   });
@@ -245,14 +266,18 @@ class _CalendarTopBar extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: c.accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(15),
+        InkWell(
+          onTap: onToday,
+          borderRadius: BorderRadius.circular(15),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: c.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(Icons.today_rounded, color: c.accent, size: 22),
           ),
-          child: Icon(Icons.event_available_rounded, color: c.accent, size: 22),
         ),
         const SizedBox(width: 11),
         Expanded(
@@ -334,7 +359,7 @@ class _MiniAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(13),
       child: Container(
-        width: 88,
+        width: 82,
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
         decoration: BoxDecoration(
           color: filled ? c.accent : c.accent.withValues(alpha: 0.08),
@@ -378,23 +403,32 @@ class _WeekStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(days.length, (i) {
-        final day = days[i];
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(left: i == days.length - 1 ? 0 : 5),
+    final start = days.first.subtract(const Duration(days: 7));
+    final scrollDays = List.generate(21, (i) => start.add(Duration(days: i)));
+
+    return SizedBox(
+      height: 66,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        reverse: true,
+        itemCount: scrollDays.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 7),
+        itemBuilder: (_, i) {
+          final day = scrollDays[i];
+          final label = _dayNames[i % 7];
+          return SizedBox(
+            width: 58,
             child: _DayCell(
-              label: _dayNames[i],
+              label: label,
               day: day,
               selected: _sameDay(day, selectedDay),
               currentMonth: true,
               events: eventsForDay(day),
               onTap: () => onSelect(day),
             ),
-          ),
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
@@ -445,7 +479,7 @@ class _DayCell extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: compact ? 46 : 68,
+        height: compact ? 38 : 62,
         padding: EdgeInsets.symmetric(vertical: compact ? 6 : 7, horizontal: 3),
         decoration: BoxDecoration(
           color: bg,
@@ -469,7 +503,7 @@ class _DayCell extends StatelessWidget {
                   maxLines: 1,
                   style: TextStyle(
                     color: selected ? Colors.white.withValues(alpha: 0.90) : c.t3,
-                    fontSize: 10.2,
+                    fontSize: 9.4,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -479,14 +513,14 @@ class _DayCell extends StatelessWidget {
               '${day.day}',
               style: TextStyle(
                 color: fg,
-                fontSize: compact ? 13.5 : 17,
+                fontSize: compact ? 12.4 : 16,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
             ),
             const SizedBox(height: 4),
             SizedBox(
-              height: 12,
+              height: 10,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -503,7 +537,7 @@ class _DayCell extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: selected ? Colors.white : c.accent,
-                          fontSize: 9.2,
+                          fontSize: 8.6,
                           fontWeight: FontWeight.w900,
                           height: 1,
                         ),
@@ -513,7 +547,7 @@ class _DayCell extends StatelessWidget {
                     const SizedBox(width: 3),
                     Icon(
                       Icons.check_circle_rounded,
-                      size: 10.5,
+                      size: 9.5,
                       color: selected ? Colors.white : c.success,
                     ),
                   ],
@@ -611,7 +645,7 @@ class _SelectedDayPanel extends StatelessWidget {
       );
     }
 
-    final visible = events.take(2).toList();
+    final visible = events.take(4).toList();
     final remaining = events.length - visible.length;
 
     return Column(
@@ -631,19 +665,19 @@ class _SelectedDayPanel extends StatelessWidget {
         if (remaining > 0)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: c.inputBg.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: c.border.withValues(alpha: 0.45)),
             ),
             child: Text(
-              '+ $remaining مناسبات أخرى',
+              'نكتفي بمناسبات اليوم',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: c.accent,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w900,
+                color: c.t3,
+                fontSize: 12.4,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -943,9 +977,9 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
               itemCount: days.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisSpacing: 7,
+                mainAxisSpacing: 8,
                 crossAxisSpacing: 6,
-                childAspectRatio: 1.02,
+                childAspectRatio: 0.82,
               ),
               itemBuilder: (_, i) {
                 final day = days[i];
