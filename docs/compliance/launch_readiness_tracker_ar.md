@@ -93,6 +93,12 @@
 تجهيز بيئة الإنتاج و HTTPS | مكتمل
 التأكد من عدم وجود localhost أو IP داخلي في نسخة الإنتاج | مكتمل مبدئيًا
 
+تم بناء APK Release بنجاح باستخدام:
+API_BASE_URL=https://api.diwaniya.online
+
+المخرج:
+build\app\outputs\flutter-apk\app-release.apk
+
 
 | 4 | مراجعة صلاحيات Android و iOS | لم يبدأ | Flutter | كاميرا، صور، ملفات، ميكروفون، إشعارات |
 
