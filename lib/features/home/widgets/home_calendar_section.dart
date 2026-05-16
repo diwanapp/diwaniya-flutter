@@ -363,7 +363,7 @@ class _MiniAction extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
         decoration: BoxDecoration(
           color: filled ? c.accent : c.accent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(14),
           border: filled ? null : Border.all(color: c.accent.withValues(alpha: 0.20)),
         ),
         child: Row(
@@ -386,7 +386,7 @@ class _MiniAction extends StatelessWidget {
   }
 }
 
-class _WeekStrip extends StatelessWidget {
+class _WeekStrip extends StatefulWidget {
   final List<DateTime> days;
   final DateTime selectedDay;
   final List<DiwaniyaCalendarEvent> Function(DateTime day) eventsForDay;
@@ -400,39 +400,54 @@ class _WeekStrip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final weekStart = days.first;
-    final scrollDays = List.generate(
-      21,
-      (i) => weekStart.subtract(const Duration(days: 7)).add(Duration(days: i)),
-    );
+  State<_WeekStrip> createState() => _WeekStripState();
+}
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: SizedBox(
-        height: 62,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          itemCount: scrollDays.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 7),
-          itemBuilder: (_, i) {
-            final day = scrollDays[i];
-            return SizedBox(
-              width: 52,
-              child: _DayCell(
-                label: _dayLabel(day),
-                day: day,
-                selected: _sameDay(day, selectedDay),
-                currentMonth: true,
-                events: eventsForDay(day),
-                onTap: () => onSelect(day),
-              ),
-            );
-          },
-        ),
-      ),
-    );
+class _WeekStripState extends State<_WeekStrip> {
+  static const int _basePage = 500;
+  late final PageController _controller;
+  late DateTime _baseWeek;
+
+  @override
+  void initState() {
+    super.initState();
+    _baseWeek = _startOfWeek(DateTime.now());
+    _controller = PageController(initialPage: _pageFor(widget.selectedDay));
+  }
+
+  @override
+  void didUpdateWidget(covariant _WeekStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = _pageFor(widget.selectedDay);
+    if (_controller.hasClients && (_controller.page?.round() ?? target) != target) {
+      _controller.animateToPage(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  DateTime _startOfWeek(DateTime d) {
+    final day = DateTime(d.year, d.month, d.day);
+    final diff = (day.weekday + 1) % 7; // Saturday = 0
+    return day.subtract(Duration(days: diff));
+  }
+
+  int _pageFor(DateTime day) {
+    final target = _startOfWeek(day);
+    final diffDays = target.difference(_baseWeek).inDays;
+    return _basePage + (diffDays ~/ 7);
+  }
+
+  DateTime _weekForPage(int page) {
+    return _baseWeek.add(Duration(days: (page - _basePage) * 7));
   }
 
   String _dayLabel(DateTime day) {
@@ -454,7 +469,48 @@ class _WeekStrip extends StatelessWidget {
     }
   }
 
-  bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _sameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SizedBox(
+        height: 62,
+        child: PageView.builder(
+          controller: _controller,
+          itemBuilder: (_, page) {
+            final start = _weekForPage(page);
+            final days = List.generate(7, (i) => start.add(Duration(days: i)));
+
+            return Row(
+              children: List.generate(days.length, (i) {
+                final day = days[i];
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      start: i == 0 ? 0 : 3,
+                      end: i == days.length - 1 ? 0 : 3,
+                    ),
+                    child: _DayCell(
+                      label: _dayLabel(day),
+                      day: day,
+                      selected: _sameDay(day, widget.selectedDay),
+                      currentMonth: true,
+                      events: widget.eventsForDay(day),
+                      onTap: () => widget.onSelect(day),
+                    ),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _DayCell extends StatelessWidget {
@@ -501,11 +557,11 @@ class _DayCell extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: compact ? 36 : 58,
+        height: compact ? 36 : 60,
         padding: EdgeInsets.symmetric(vertical: compact ? 3 : 6, horizontal: 3),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(13),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
                 ? c.accent
@@ -652,7 +708,7 @@ class _SelectedDayPanel extends StatelessWidget {
               height: 38,
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(Icons.event_busy_rounded, color: c.t3, size: 19),
             ),
@@ -767,41 +823,29 @@ class _EventCardState extends State<_EventCard> {
 
     return InkWell(
       onTap: () => setState(() => _expanded = !_expanded),
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        duration: const Duration(milliseconds: 170),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
         decoration: BoxDecoration(
-          color: c.inputBg.withValues(alpha: 0.92),
-          borderRadius: BorderRadius.circular(17),
+          color: c.inputBg.withValues(alpha: 0.78),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: event.isAttending
-                ? c.success.withValues(alpha: 0.20)
-                : c.border.withValues(alpha: 0.22),
+                ? c.success.withValues(alpha: 0.18)
+                : c.border.withValues(alpha: 0.16),
           ),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text(
-                    event.title,
-                    style: TextStyle(
-                      color: c.t1,
-                      fontSize: 13.7,
-                      fontWeight: FontWeight.w900,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
                 if (widget.canManage)
                   PopupMenuButton<String>(
                     tooltip: 'إدارة المناسبة',
                     padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 20),
+                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 19),
                     onSelected: (value) {
                       if (value == 'edit') widget.onEdit();
                       if (value == 'delete') widget.onDelete();
@@ -815,63 +859,100 @@ class _EventCardState extends State<_EventCard> {
                   Icon(
                     _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                     color: c.t3,
+                    size: 20,
                   ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    event.title,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: c.t1,
+                      fontSize: 14.2,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 5,
-              children: [
-                _Pill(icon: Icons.schedule_rounded, label: widget.timeText(event.startsAt)),
-                _Pill(icon: Icons.groups_rounded, label: '${event.attendeesCount} جاي'),
-                if (event.isAttending) _Pill(icon: Icons.check_circle_rounded, label: 'حضورك مسجل', success: true),
-              ],
+            const SizedBox(height: 7),
+            Directionality(
+              textDirection: TextDirection.rtl,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 5,
+                children: [
+                  _Pill(icon: Icons.schedule_rounded, label: widget.timeText(event.startsAt)),
+                  _Pill(icon: Icons.groups_rounded, label: '${event.attendeesCount} جاي'),
+                  if (event.isAttending)
+                    _Pill(
+                      icon: Icons.check_circle_rounded,
+                      label: 'حضورك مسجل',
+                      success: true,
+                    ),
+                ],
+              ),
             ),
             AnimatedCrossFade(
               firstChild: const SizedBox.shrink(),
               secondChild: Padding(
-                padding: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.only(top: 9),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if ((event.description ?? '').trim().isNotEmpty) ...[
                       Text(
                         event.description!.trim(),
-                        style: TextStyle(color: c.t2, fontSize: 12.5, height: 1.45),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    Row(
-                      children: [
-                        Expanded(
-                          child: event.isAttending
-                              ? OutlinedButton(
-                                  onPressed: widget.onAttendToggle,
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: c.t3,
-                                    side: BorderSide(color: c.border),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-                                  ),
-                                  child: const Text('إلغاء'),
-                                )
-                              : FilledButton.icon(
-                                  onPressed: widget.onAttendToggle,
-                                  icon: const Icon(Icons.how_to_reg_rounded, size: 17),
-                                  label: const Text('جاي'),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: c.accent,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-                                  ),
-                                ),
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: c.t2,
+                          fontSize: 12.2,
+                          height: 1.35,
                         ),
-                      ],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 9),
+                    ],
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: SizedBox(
+                        height: 36,
+                        child: event.isAttending
+                            ? OutlinedButton(
+                                onPressed: widget.onAttendToggle,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: c.t3,
+                                  side: BorderSide(color: c.border.withValues(alpha: 0.55)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                                ),
+                                child: const Text('إلغاء'),
+                              )
+                            : FilledButton.icon(
+                                onPressed: widget.onAttendToggle,
+                                icon: const Icon(Icons.how_to_reg_rounded, size: 16),
+                                label: const Text('جاي'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: c.accent,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                                ),
+                              ),
+                      ),
                     ),
                   ],
                 ),
               ),
               crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 160),
+              duration: const Duration(milliseconds: 150),
             ),
           ],
         ),
@@ -896,9 +977,9 @@ class _Pill extends StatelessWidget {
     final c = context.cl;
     final color = success ? c.success : c.t3;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4.5),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: c.card.withValues(alpha: 0.92),
+        color: c.card.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
