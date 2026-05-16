@@ -196,12 +196,12 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
       decoration: BoxDecoration(
         color: c.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: c.border.withValues(alpha: 0.75)),
+        border: Border.all(color: c.border.withValues(alpha: 0.32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: Colors.black.withValues(alpha: 0.035),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -399,37 +399,59 @@ class _WeekStrip extends StatelessWidget {
     required this.onSelect,
   });
 
-  static const _dayNames = ['سبت', 'أحد', 'اثن', 'ثلث', 'أربع', 'خميس', 'جمعة'];
-
   @override
   Widget build(BuildContext context) {
-    final start = days.first.subtract(const Duration(days: 7));
-    final scrollDays = List.generate(21, (i) => start.add(Duration(days: i)));
+    final weekStart = days.first;
+    final scrollDays = List.generate(
+      21,
+      (i) => weekStart.subtract(const Duration(days: 7)).add(Duration(days: i)),
+    );
 
-    return SizedBox(
-      height: 66,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        itemCount: scrollDays.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 7),
-        itemBuilder: (_, i) {
-          final day = scrollDays[i];
-          final label = _dayNames[i % 7];
-          return SizedBox(
-            width: 58,
-            child: _DayCell(
-              label: label,
-              day: day,
-              selected: _sameDay(day, selectedDay),
-              currentMonth: true,
-              events: eventsForDay(day),
-              onTap: () => onSelect(day),
-            ),
-          );
-        },
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SizedBox(
+        height: 62,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: scrollDays.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 7),
+          itemBuilder: (_, i) {
+            final day = scrollDays[i];
+            return SizedBox(
+              width: 52,
+              child: _DayCell(
+                label: _dayLabel(day),
+                day: day,
+                selected: _sameDay(day, selectedDay),
+                currentMonth: true,
+                events: eventsForDay(day),
+                onTap: () => onSelect(day),
+              ),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  String _dayLabel(DateTime day) {
+    switch (day.weekday) {
+      case DateTime.saturday:
+        return 'سبت';
+      case DateTime.sunday:
+        return 'أحد';
+      case DateTime.monday:
+        return 'اثن';
+      case DateTime.tuesday:
+        return 'ثلث';
+      case DateTime.wednesday:
+        return 'أربع';
+      case DateTime.thursday:
+        return 'خميس';
+      default:
+        return 'جمعة';
+    }
   }
 
   bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
@@ -479,11 +501,11 @@ class _DayCell extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: compact ? 38 : 62,
-        padding: EdgeInsets.symmetric(vertical: compact ? 6 : 7, horizontal: 3),
+        height: compact ? 36 : 58,
+        padding: EdgeInsets.symmetric(vertical: compact ? 3 : 6, horizontal: 3),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(13),
           border: Border.all(
             color: selected
                 ? c.accent
@@ -492,70 +514,98 @@ class _DayCell extends StatelessWidget {
                     : Colors.transparent,
           ),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (!compact)
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: selected ? Colors.white.withValues(alpha: 0.90) : c.t3,
-                    fontSize: 9.4,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            if (!compact) const SizedBox(height: 3),
-            Text(
-              '${day.day}',
-              style: TextStyle(
-                color: fg,
-                fontSize: compact ? 12.4 : 16,
-                fontWeight: FontWeight.w900,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              height: 10,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+        child: compact
+            ? Stack(
+                alignment: Alignment.center,
                 children: [
+                  Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
                   if (events.isNotEmpty)
-                    Container(
-                      constraints: const BoxConstraints(minWidth: 13),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: selected ? Colors.white.withValues(alpha: 0.22) : c.accent.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        events.length == 1 ? '•' : '${events.length}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
+                    Positioned(
+                      bottom: 3,
+                      child: Container(
+                        width: 4.5,
+                        height: 4.5,
+                        decoration: BoxDecoration(
                           color: selected ? Colors.white : c.accent,
-                          fontSize: 8.6,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
+                          shape: BoxShape.circle,
                         ),
                       ),
                     ),
-                  if (_hasAttendance) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      Icons.check_circle_rounded,
-                      size: 9.5,
-                      color: selected ? Colors.white : c.success,
+                ],
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: selected ? Colors.white.withValues(alpha: 0.88) : c.t3,
+                        fontSize: 9.2,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${day.day}',
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 9,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (events.isNotEmpty)
+                          Container(
+                            constraints: const BoxConstraints(minWidth: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 0.5),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? Colors.white.withValues(alpha: 0.22)
+                                  : c.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              events.length == 1 ? '•' : '${events.length}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: selected ? Colors.white : c.accent,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        if (_hasAttendance) ...[
+                          const SizedBox(width: 2.5),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 9,
+                            color: selected ? Colors.white : c.success,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -589,7 +639,7 @@ class _SelectedDayPanel extends StatelessWidget {
     if (events.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(13),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
           color: c.inputBg,
           borderRadius: BorderRadius.circular(18),
@@ -720,12 +770,14 @@ class _EventCardState extends State<_EventCard> {
       borderRadius: BorderRadius.circular(18),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: c.inputBg,
-          borderRadius: BorderRadius.circular(18),
+          color: c.inputBg.withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(17),
           border: Border.all(
-            color: event.isAttending ? c.success.withValues(alpha: 0.28) : c.border.withValues(alpha: 0.52),
+            color: event.isAttending
+                ? c.success.withValues(alpha: 0.20)
+                : c.border.withValues(alpha: 0.22),
           ),
         ),
         child: Column(
@@ -738,7 +790,7 @@ class _EventCardState extends State<_EventCard> {
                     event.title,
                     style: TextStyle(
                       color: c.t1,
-                      fontSize: 14.2,
+                      fontSize: 13.7,
                       fontWeight: FontWeight.w900,
                     ),
                     maxLines: 1,
@@ -766,10 +818,10 @@ class _EventCardState extends State<_EventCard> {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 7,
-              runSpacing: 6,
+              spacing: 6,
+              runSpacing: 5,
               children: [
                 _Pill(icon: Icons.schedule_rounded, label: widget.timeText(event.startsAt)),
                 _Pill(icon: Icons.groups_rounded, label: '${event.attendeesCount} جاي'),
@@ -844,7 +896,7 @@ class _Pill extends StatelessWidget {
     final c = context.cl;
     final color = success ? c.success : c.t3;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5.5),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4.5),
       decoration: BoxDecoration(
         color: c.card.withValues(alpha: 0.92),
         borderRadius: BorderRadius.circular(999),
@@ -858,7 +910,7 @@ class _Pill extends StatelessWidget {
             label,
             style: TextStyle(
               color: success ? c.success : c.t2,
-              fontSize: 11.2,
+              fontSize: 10.8,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -977,9 +1029,9 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
               itemCount: days.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisSpacing: 8,
+                mainAxisSpacing: 7,
                 crossAxisSpacing: 6,
-                childAspectRatio: 0.82,
+                childAspectRatio: 1.0,
               ),
               itemBuilder: (_, i) {
                 final day = days[i];
