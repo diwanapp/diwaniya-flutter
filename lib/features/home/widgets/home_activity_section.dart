@@ -106,7 +106,7 @@ class HomeActivityRow extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                activity.message,
+                _polishedActivityMessage(activity.message),
                 style: TextStyle(
                   fontSize: 13,
                   color: c.t1,
@@ -126,4 +126,53 @@ class HomeActivityRow extends StatelessWidget {
       ),
     );
   }
+}
+
+
+String _polishedActivityMessage(String message) {
+  final text = message.trim();
+
+  String? moveActorFirst(String verb) {
+    final prefix = '$verb ';
+    if (!text.startsWith(prefix)) return null;
+    final rest = text.substring(prefix.length).trim();
+    if (rest.isEmpty) return null;
+
+    // Known action tails used in current activity messages.
+    final tails = <String>[
+      ' تصويتًا جديدًا',
+      ' تصويتاً جديداً',
+      ' مصروف:',
+      ' من الديوانية',
+      ' مناسبة',
+      ' صورة',
+    ];
+
+    for (final tail in tails) {
+      final idx = rest.indexOf(tail);
+      if (idx > 0) {
+        final actor = rest.substring(0, idx).trim();
+        final target = rest.substring(idx).trim();
+        if (actor.isNotEmpty) {
+          return '$actor $verb $target';
+        }
+      }
+    }
+
+    final parts = rest.split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      final actor = parts.take(2).join(' ');
+      final target = parts.skip(2).join(' ');
+      return target.isEmpty ? '$actor $verb' : '$actor $verb $target';
+    }
+
+    return null;
+  }
+
+  for (final verb in ['أنشأ', 'أضاف', 'أزال', 'حذف', 'عدّل', 'قبل', 'رفض']) {
+    final moved = moveActorFirst(verb);
+    if (moved != null) return moved;
+  }
+
+  return text;
 }

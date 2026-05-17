@@ -225,16 +225,16 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     final isGoing = _isCurrentUserGoing(_selectedDay);
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
       decoration: BoxDecoration(
         color: c.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: c.border.withValues(alpha: 0.32)),
+        border: Border.all(color: c.border.withValues(alpha: 0.10)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.018),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -253,7 +253,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             onToggleGoing: _toggleSelectedDayAttendance,
             onShowGoing: () => widget.onShowDayAttendees(_selectedDay),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           _WeekStrip(
             days: _weekDays,
             selectedDay: _selectedDay,
@@ -262,7 +262,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             isCurrentUserGoing: _isCurrentUserGoing,
             onSelect: _select,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           _SelectedDayPanel(
             selectedDay: _selectedDay,
             events: selectedEvents,
@@ -324,24 +324,24 @@ class _CalendarTopBar extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: c.accent.withValues(alpha: 0.10),
+                  color: c.accent.withValues(alpha: 0.075),
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: c.accent.withValues(alpha: 0.16)),
+                  border: Border.all(color: c.accent.withValues(alpha: 0.13)),
                 ),
-                child: Icon(Icons.calendar_month_rounded, color: c.accent, size: 22),
+                child: Icon(Icons.calendar_month_rounded, color: c.accent, size: 21),
               ),
               PositionedDirectional(
                 top: -4,
                 end: -4,
                 child: Container(
-                  width: 18,
-                  height: 18,
+                  width: 19,
+                  height: 19,
                   decoration: BoxDecoration(
                     color: c.accent,
                     shape: BoxShape.circle,
                     border: Border.all(color: c.card, width: 2),
                   ),
-                  child: const Icon(Icons.add_rounded, size: 12, color: Colors.white),
+                  child: const Icon(Icons.add_rounded, size: 13, color: Colors.white),
                 ),
               ),
             ],
@@ -356,9 +356,9 @@ class _CalendarTopBar extends StatelessWidget {
                 title,
                 style: TextStyle(
                   color: c.t1,
-                  fontSize: 18,
+                  fontSize: 18.5,
                   fontWeight: FontWeight.w900,
-                  height: 1.08,
+                  height: 1.05,
                 ),
               ),
               const SizedBox(height: 5),
@@ -366,7 +366,7 @@ class _CalendarTopBar extends StatelessWidget {
                 headline,
                 style: TextStyle(
                   color: c.t3,
-                  fontSize: 12.5,
+                  fontSize: 12.2,
                   fontWeight: FontWeight.w700,
                   height: 1.25,
                 ),
@@ -376,7 +376,7 @@ class _CalendarTopBar extends StatelessWidget {
                 onTap: goingCount > 0 ? onShowGoing : null,
                 borderRadius: BorderRadius.circular(999),
                 child: Text(
-                  goingCount > 0 ? '$goingCount جايين اليوم · $summary' : summary,
+                  summary,
                   style: TextStyle(
                     color: goingCount > 0 ? c.accent : c.t2,
                     fontSize: 12.2,
@@ -653,7 +653,7 @@ class _DayCell extends StatelessWidget {
         ? c.accent
         : isToday
             ? c.accent.withValues(alpha: 0.08)
-            : c.inputBg;
+            : c.inputBg.withValues(alpha: 0.78);
 
     final fg = selected
         ? Colors.white
@@ -819,46 +819,64 @@ class _SelectedDayPanel extends StatelessWidget {
     final c = context.cl;
 
     if (events.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: c.inputBg,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: c.border.withValues(alpha: 0.38)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.groups_rounded, color: c.accent, size: 21),
-            const SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                onTap: goingCount > 0 ? onShowGoing : null,
-                borderRadius: BorderRadius.circular(12),
-                child: Text(
-                  goingCount > 0 ? '$goingCount جايين اليوم' : 'لا توجد مناسبات اليوم',
-                  style: TextStyle(
-                    color: goingCount > 0 ? c.accent : c.t1,
-                    fontSize: 13.4,
-                    fontWeight: FontWeight.w900,
+      return InkWell(
+        onTap: onCreate,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          decoration: BoxDecoration(
+            color: c.inputBg.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(16),
+            border: Border(
+              bottom: BorderSide(
+                color: c.border.withValues(alpha: 0.07),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: goingCount > 0 ? c.accent : c.t3.withValues(alpha: 0.42),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: InkWell(
+                  onTap: goingCount > 0 ? onShowGoing : onCreate,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Text(
+                    goingCount > 0 ? '$goingCount جايين اليوم' : 'لا توجد مناسبات اليوم',
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: goingCount > 0 ? c.accent : c.t2,
+                      fontSize: 13.3,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    ),
                   ),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'إضافة مناسبة',
-              onPressed: onCreate,
-              style: IconButton.styleFrom(
-                foregroundColor: c.accent,
-                backgroundColor: c.accent.withValues(alpha: 0.08),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: BorderSide(color: c.accent.withValues(alpha: 0.16)),
+              const SizedBox(width: 8),
+              Container(
+                width: 36,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: c.accent.withValues(alpha: 0.055),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: c.accent.withValues(alpha: 0.09)),
                 ),
+                child: Icon(Icons.add_rounded, color: c.accent, size: 24),
               ),
-              icon: const Icon(Icons.add_rounded, size: 28, weight: 800),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
@@ -870,7 +888,7 @@ class _SelectedDayPanel extends StatelessWidget {
       children: [
         for (final event in visible)
           Padding(
-            padding: const EdgeInsets.only(bottom: 7),
+            padding: const EdgeInsets.only(bottom: 2),
             child: _EventCard(
               event: event,
               canManage: canManage(event),
@@ -935,29 +953,66 @@ class _EventCardState extends State<_EventCard> {
 
     return InkWell(
       onTap: () => setState(() => _expanded = !_expanded),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: c.inputBg.withValues(alpha: 0.62),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: event.isAttending
-                ? c.success.withValues(alpha: 0.16)
-                : c.border.withValues(alpha: 0.12),
+          color: event.isAttending
+              ? c.success.withValues(alpha: 0.035)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border(
+            bottom: BorderSide(
+              color: c.border.withValues(alpha: 0.09),
+              width: 1,
+            ),
           ),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                if (widget.canManage)
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: event.isAttending ? c.success : c.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    event.title,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: c.t1,
+                      fontSize: 13.7,
+                      fontWeight: FontWeight.w900,
+                      height: 1.12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _TinyInlineMeta(
+                  icon: Icons.schedule_rounded,
+                  label: widget.timeText(event.startsAt),
+                ),
+                const SizedBox(width: 5),
+                _TinyInlineMeta(
+                  icon: Icons.groups_rounded,
+                  label: '${event.attendeesCount} جاي',
+                ),
+                if (widget.canManage) ...[
+                  const SizedBox(width: 2),
                   PopupMenuButton<String>(
                     tooltip: 'إدارة المناسبة',
                     padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 20),
+                    constraints: const BoxConstraints(minWidth: 104),
+                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 19),
                     onSelected: (value) {
                       if (value == 'edit') widget.onEdit();
                       if (value == 'delete') widget.onDelete();
@@ -966,115 +1021,119 @@ class _EventCardState extends State<_EventCard> {
                       PopupMenuItem(value: 'edit', child: Text('تعديل')),
                       PopupMenuItem(value: 'delete', child: Text('حذف')),
                     ],
-                  )
-                else
+                  ),
+                ] else ...[
+                  const SizedBox(width: 4),
                   Icon(
-                    _expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    _expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
                     color: c.t3,
-                    size: 20,
+                    size: 18,
                   ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    event.title,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: c.t1,
-                      fontSize: 14.4,
-                      fontWeight: FontWeight.w900,
-                      height: 1.08,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 7),
-            Directionality(
-              textDirection: TextDirection.rtl,
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 5,
-                children: [
-                  _TinyBadge(
-                    icon: Icons.schedule_rounded,
-                    label: widget.timeText(event.startsAt),
-                  ),
-                  _TinyBadge(
-                    icon: Icons.groups_rounded,
-                    label: '${event.attendeesCount} جاي',
-                  ),
-                  if (event.isAttending)
-                    _TinyBadge(
-                      icon: Icons.check_circle_rounded,
-                      label: 'حضورك مسجل',
-                      success: true,
-                    ),
                 ],
-              ),
+              ],
             ),
             AnimatedCrossFade(
               firstChild: const SizedBox.shrink(),
               secondChild: Padding(
-                padding: const EdgeInsets.only(top: 9),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                padding: const EdgeInsets.only(top: 7),
+                child: Row(
                   children: [
-                    if ((event.description ?? '').trim().isNotEmpty) ...[
-                      Text(
-                        event.description!.trim(),
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: c.t2,
-                          fontSize: 12.1,
-                          height: 1.35,
-                          fontWeight: FontWeight.w600,
+                    if ((event.description ?? '').trim().isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          event.description!.trim(),
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: c.t2,
+                            fontSize: 11.5,
+                            height: 1.35,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 9),
-                    ],
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: SizedBox(
-                        height: 34,
-                        child: event.isAttending
-                            ? OutlinedButton(
-                                onPressed: widget.onAttendToggle,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: c.t3,
-                                  side: BorderSide(color: c.border.withValues(alpha: 0.42)),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                      )
+                    else
+                      const Spacer(),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      height: 30,
+                      child: event.isAttending
+                          ? OutlinedButton(
+                              onPressed: widget.onAttendToggle,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: c.t3,
+                                side: BorderSide(
+                                  color: c.border.withValues(alpha: 0.24),
                                 ),
-                                child: const Text('إلغاء'),
-                              )
-                            : FilledButton.icon(
-                                onPressed: widget.onAttendToggle,
-                                icon: const Icon(Icons.how_to_reg_rounded, size: 15),
-                                label: const Text('جاي'),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: c.accent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(11),
                                 ),
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
                               ),
-                      ),
+                              child: const Text('إلغاء'),
+                            )
+                          : FilledButton(
+                              onPressed: widget.onAttendToggle,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: c.accent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                              ),
+                              child: const Text('جاي'),
+                            ),
                     ),
                   ],
                 ),
               ),
-              crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 140),
+              crossFadeState:
+                  _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 130),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TinyInlineMeta extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _TinyInlineMeta({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3.5),
+      decoration: BoxDecoration(
+        color: c.card.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11.5, color: c.t3),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: c.t2,
+              fontSize: 10.2,
+              fontWeight: FontWeight.w800,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1105,7 +1164,7 @@ class _TinyBadge extends StatelessWidget {
         border: Border.all(
           color: success
               ? c.success.withValues(alpha: 0.12)
-              : c.border.withValues(alpha: 0.08),
+              : c.border.withValues(alpha: 0.055),
         ),
       ),
       child: Row(
@@ -1201,6 +1260,10 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
             Row(
               children: [
                 IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: c.inputBg.withValues(alpha: 0.55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
                   icon: Icon(Icons.chevron_left_rounded, color: c.t2),
                 ),
@@ -1212,6 +1275,10 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
                   ),
                 ),
                 IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: c.inputBg.withValues(alpha: 0.55),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
                   icon: Icon(Icons.chevron_right_rounded, color: c.t2),
                 ),

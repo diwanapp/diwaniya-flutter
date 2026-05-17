@@ -27,113 +27,99 @@ class HomeQuickActionsSection extends StatelessWidget {
         Text(
           Ar.quickActions,
           style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontSize: 15.2,
+            fontWeight: FontWeight.w900,
             color: c.t1,
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 88,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const gap = 6.0;
-              final itemWidth = ((constraints.maxWidth - (gap * 3)) / 4)
-                  .clamp(68.0, 78.0)
-                  .toDouble();
-
-              return ListView(
-                scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _QA(
-                    icon: Icons.add_shopping_cart_rounded,
-                    label: 'أضف مقاضي',
-                    color: c.warning,
-                    onTap: onAddMaqadi,
-                    width: itemWidth,
-                  ),
-                  const SizedBox(width: gap),
-                  _QA(
-                    icon: Icons.add_card_rounded,
-                    label: Ar.addExpense,
-                    color: c.accent,
-                    onTap: onAddExpense,
-                    width: itemWidth,
-                  ),
-                  const SizedBox(width: gap),
-                  _QA(
-                    icon: Icons.how_to_vote_rounded,
-                    label: Ar.createPoll,
-                    color: c.info,
-                    onTap: onCreatePoll,
-                    width: itemWidth,
-                  ),
-                  const SizedBox(width: gap),
-                  _QA(
-                    icon: Icons.camera_alt_rounded,
-                    label: 'التقط صورة',
-                    color: c.error,
-                    onTap: onCapturePhoto,
-                    width: itemWidth,
-                  ),
-                ],
-              );
-            },
-          ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _QuickTile(
+                icon: Icons.add_shopping_cart_rounded,
+                label: 'مقاضي',
+                color: c.warning,
+                onTap: onAddMaqadi,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: _QuickTile(
+                icon: Icons.add_card_rounded,
+                label: 'مصروف',
+                color: c.success,
+                onTap: onAddExpense,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: _QuickTile(
+                icon: Icons.how_to_vote_rounded,
+                label: 'تصويت',
+                color: const Color(0xFF60A5FA),
+                onTap: onCreatePoll,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: _QuickTile(
+                icon: Icons.camera_alt_rounded,
+                label: 'صورة',
+                color: c.error,
+                onTap: onCapturePhoto,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _QA extends StatelessWidget {
+class _QuickTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  final double width;
 
-  const _QA({
+  const _QuickTile({
     required this.icon,
     required this.label,
     required this.color,
     required this.onTap,
-    required this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
 
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        width: width,
+      borderRadius: BorderRadius.circular(17),
+      child: Container(
+        height: 66,
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.060),
+          borderRadius: BorderRadius.circular(17),
+          border: Border.all(color: color.withValues(alpha: 0.09)),
+        ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: color.withValues(alpha: 0.12)),
-              ),
-              child: Icon(icon, size: 24, color: color),
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11.5,
-                color: c.t2,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.9,
+                color: c.t2,
+                fontWeight: FontWeight.w800,
+                height: 1,
+              ),
             ),
           ],
         ),

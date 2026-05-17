@@ -32,6 +32,7 @@ import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
 import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
+import 'widgets/home_ad_banner.dart';
 import 'widgets/home_handle.dart';
 import 'widgets/home_poll_banner.dart';
 import 'widgets/home_calendar_section.dart';
@@ -1692,6 +1693,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       onDelete: _deleteCalendarEvent,
                     ),
                     const SizedBox(height: 12),
+                    const HomeAdBanner(),
+                    const SizedBox(height: 10),
                     if (_activePoll != null) ...[
                       GestureDetector(
                         onTap: _openPolls,
@@ -1700,14 +1703,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           activeCount: _activePolls,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                     ],
                     if (_showUpgradeBanner) ...[
                       _HomeUpgradeBanner(
                         onTap: _openUpgradeFromBanner,
                         onDismiss: _dismissUpgradeBanner,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                     ],
                     HomeStatsSection(
                       memberCount: _members.length,
@@ -1730,14 +1733,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       onOpenChat: () => context.push(AppRoutes.chat),
                       onOpenAlbum: _openAlbum,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
                     HomeQuickActionsSection(
                       onAddExpense: () => context.go(AppRoutes.expenses),
                       onCreatePoll: _openCreatePoll,
                       onAddMaqadi: () => context.go(AppRoutes.maqadi),
                       onCapturePhoto: _capturePhotoQuick,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
                     HomeActivitySection(
                         activities: _activities
                             .where((a) => !a.type.startsWith('chat'))
