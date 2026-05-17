@@ -4,6 +4,9 @@ import '../models/mock_data.dart';
 final Map<String, List<DiwaniyaCalendarEvent>> diwaniyaCalendarEvents =
     <String, List<DiwaniyaCalendarEvent>>{};
 
+final Map<String, List<DiwaniyaCalendarDayAttendance>> diwaniyaCalendarDayAttendance =
+    <String, List<DiwaniyaCalendarDayAttendance>>{};
+
 class DiwaniyaCalendarEvent {
   final String id;
   final String diwaniyaId;
@@ -73,6 +76,73 @@ class DiwaniyaCalendarEvent {
   }
 }
 
+
+class CalendarDayAttendee {
+  final String userId;
+  final String userName;
+  final String source;
+
+  const CalendarDayAttendee({
+    required this.userId,
+    required this.userName,
+    required this.source,
+  });
+
+  factory CalendarDayAttendee.fromBackend(Map<String, dynamic> raw) {
+    return CalendarDayAttendee(
+      userId: (raw['user_id'] ?? raw['userId'] ?? '').toString(),
+      userName: (raw['user_name'] ?? raw['userName'] ?? '').toString(),
+      source: (raw['source'] ?? 'day').toString(),
+    );
+  }
+}
+
+class DiwaniyaCalendarDayAttendance {
+  final DateTime date;
+  final int dayAttendeesCount;
+  final int eventAttendeesCount;
+  final int totalUniqueAttendeesCount;
+  final bool isCurrentUserAttending;
+  final List<CalendarDayAttendee> attendees;
+
+  const DiwaniyaCalendarDayAttendance({
+    required this.date,
+    required this.dayAttendeesCount,
+    required this.eventAttendeesCount,
+    required this.totalUniqueAttendeesCount,
+    required this.isCurrentUserAttending,
+    required this.attendees,
+  });
+
+  static DateTime _dateOnly(DateTime value) {
+    final local = value.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
+
+  factory DiwaniyaCalendarDayAttendance.fromBackend(Map<String, dynamic> raw) {
+    final parsed = DateTime.tryParse((raw['date'] ?? '').toString()) ?? DateTime.now();
+    final attendeesRaw = raw['attendees'];
+    return DiwaniyaCalendarDayAttendance(
+      date: _dateOnly(parsed),
+      dayAttendeesCount:
+          ((raw['day_attendees_count'] ?? raw['dayAttendeesCount']) as num?)?.toInt() ?? 0,
+      eventAttendeesCount:
+          ((raw['event_attendees_count'] ?? raw['eventAttendeesCount']) as num?)?.toInt() ?? 0,
+      totalUniqueAttendeesCount:
+          ((raw['total_unique_attendees_count'] ?? raw['totalUniqueAttendeesCount']) as num?)?.toInt() ?? 0,
+      isCurrentUserAttending:
+          (raw['is_current_user_attending'] ?? raw['isCurrentUserAttending']) == true,
+      attendees: attendeesRaw is List
+          ? attendeesRaw
+              .whereType<Map>()
+              .map((e) => CalendarDayAttendee.fromBackend(Map<String, dynamic>.from(e)))
+              .toList()
+          : const <CalendarDayAttendee>[],
+    );
+  }
+}
+
+
 class CalendarService {
   CalendarService._();
 
@@ -111,6 +181,25 @@ class CalendarService {
     return '/diwaniyas/$did/calendar/events/$eid/cancel-attendance';
   }
 
+  static String _dateParam(DateTime value) {
+    final local = value.toLocal();
+    return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  }
+
+  static String _dayAttendancePath(
+    String diwaniyaId, {
+    required DateTime from,
+    required DateTime to,
+  }) {
+    final did = Uri.encodeComponent(diwaniyaId.trim());
+    return '/diwaniyas/$did/calendar/day-attendance?from=${_dateParam(from)}&to=${_dateParam(to)}';
+  }
+
+  static String _dayAttendanceDatePath(String diwaniyaId, DateTime day) {
+    final did = Uri.encodeComponent(diwaniyaId.trim());
+    return '/diwaniyas/$did/calendar/day-attendance/${_dateParam(day)}';
+  }
+
   static Future<void> syncForDiwaniya(
     String diwaniyaId, {
     bool bumpVersion = true,
@@ -122,8 +211,16 @@ class CalendarService {
     final from = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
     final to = from.add(const Duration(days: 45));
 
-    final raw = await ApiClient.get(_eventsPath(did, from: from, to: to, limit: 50));
-    final eventsRaw = (raw['events'] as List? ?? const <dynamic>[]);
+    final results = await Future.wait<dynamic>([
+      ApiClient.get(_eventsPath(did, from: from, to: to, limit: 50)),
+      ApiClient.get(_dayAttendancePath(did, from: from, to: to)),
+    ]);
+
+    final eventsResponse = Map<String, dynamic>.from(results[0] as Map);
+    final daysResponse = Map<String, dynamic>.from(results[1] as Map);
+
+    final eventsRaw = (eventsResponse['events'] as List? ?? const <dynamic>[]);
+    final daysRaw = (daysResponse['days'] as List? ?? const <dynamic>[]);
 
     final events = eventsRaw
         .whereType<Map>()
@@ -132,7 +229,14 @@ class CalendarService {
         .toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
+    final days = daysRaw
+        .whereType<Map>()
+        .map((e) => DiwaniyaCalendarDayAttendance.fromBackend(Map<String, dynamic>.from(e)))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
     diwaniyaCalendarEvents[did] = events;
+    diwaniyaCalendarDayAttendance[did] = days;
     if (bumpVersion) dataVersion.value++;
   }
 
@@ -198,6 +302,20 @@ class CalendarService {
 
   static Future<void> deleteEvent(String diwaniyaId, String eventId) async {
     await ApiClient.delete(_eventPath(diwaniyaId, eventId));
+    await syncForDiwaniya(diwaniyaId);
+  }
+
+  static Future<void> setDayAttendance(
+    String diwaniyaId,
+    DateTime day, {
+    required bool attending,
+  }) async {
+    final path = _dayAttendanceDatePath(diwaniyaId, day);
+    if (attending) {
+      await ApiClient.post(path);
+    } else {
+      await ApiClient.delete(path);
+    }
     await syncForDiwaniya(diwaniyaId);
   }
 }

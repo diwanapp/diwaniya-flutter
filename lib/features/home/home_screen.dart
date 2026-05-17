@@ -491,6 +491,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<DiwaniyaPoll> get _polls => diwaniyaPolls[_diwaniyaId] ?? [];
   List<DiwaniyaCalendarEvent> get _calendarEvents =>
       diwaniyaCalendarEvents[_diwaniyaId] ?? [];
+  List<DiwaniyaCalendarDayAttendance> get _calendarDayAttendance =>
+      diwaniyaCalendarDayAttendance[_diwaniyaId] ?? [];
   List<DiwaniyaActivity> get _activities =>
       diwaniyaActivities[_diwaniyaId] ?? [];
   List<DiwaniyaNotification> get _notifs =>
@@ -944,6 +946,123 @@ class _HomeScreenState extends State<HomeScreen> {
             _snack('تعذر حفظ المناسبة. تحقق من الاتصال وحاول مرة أخرى');
           }
         },
+      ),
+    );
+  }
+
+
+
+  DiwaniyaCalendarDayAttendance? _calendarDayFor(DateTime day) {
+    final target = DateTime(day.year, day.month, day.day);
+    for (final row in _calendarDayAttendance) {
+      final d = DateTime(row.date.year, row.date.month, row.date.day);
+      if (d == target) return row;
+    }
+    return null;
+  }
+
+  Future<void> _toggleCalendarDayAttendance(DateTime day, bool attending) async {
+    final did = _diwaniyaId;
+    if (did.isEmpty) return;
+
+    try {
+      await CalendarService.setDayAttendance(
+        did,
+        day,
+        attending: attending,
+      );
+      if (!mounted) return;
+      _snack(attending ? 'حضورك مسجل' : 'تم إلغاء الحضور');
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر تحديث الحضور. تحقق من الاتصال وحاول مرة أخرى');
+    }
+  }
+
+  void _openCalendarDayAttendees(DateTime day) {
+    final row = _calendarDayFor(day);
+    final attendees = row?.attendees ?? const <CalendarDayAttendee>[];
+    final c = context.cl;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              HomeHandle(c),
+              const SizedBox(height: 14),
+              Text(
+                'مين جاي؟',
+                style: TextStyle(
+                  color: c.t1,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (attendees.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(
+                    'لا يوجد حضور مسجل',
+                    style: TextStyle(color: c.t3, fontWeight: FontWeight.w700),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: attendees.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, index) {
+                      final a = attendees[index];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: c.inputBg,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              a.source == 'day'
+                                  ? Icons.check_circle_rounded
+                                  : Icons.event_available_rounded,
+                              color: a.source == 'day' ? c.success : c.accent,
+                              size: 19,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                a.userName.trim().isEmpty ? 'عضو' : a.userName,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  color: c.t1,
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1563,8 +1682,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                     HomeCalendarSection(
                       events: _calendarEvents,
+                      dayAttendance: _calendarDayAttendance,
                       isManager: UserService.isManager(),
                       onCreate: (day) => _openCreateCalendarEvent(initialDate: day),
+                      onDayAttendanceToggle: _toggleCalendarDayAttendance,
+                      onShowDayAttendees: _openCalendarDayAttendees,
                       onAttendToggle: _toggleCalendarAttendance,
                       onEdit: (event) => _openCreateCalendarEvent(initial: event),
                       onDelete: _deleteCalendarEvent,

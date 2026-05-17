@@ -7,8 +7,11 @@ import 'home_handle.dart';
 
 class HomeCalendarSection extends StatefulWidget {
   final List<DiwaniyaCalendarEvent> events;
+  final List<DiwaniyaCalendarDayAttendance> dayAttendance;
   final bool isManager;
   final void Function(DateTime day) onCreate;
+  final void Function(DateTime day, bool attending) onDayAttendanceToggle;
+  final void Function(DateTime day) onShowDayAttendees;
   final void Function(DiwaniyaCalendarEvent event) onAttendToggle;
   final void Function(DiwaniyaCalendarEvent event) onEdit;
   final void Function(DiwaniyaCalendarEvent event) onDelete;
@@ -16,8 +19,11 @@ class HomeCalendarSection extends StatefulWidget {
   const HomeCalendarSection({
     super.key,
     required this.events,
+    required this.dayAttendance,
     required this.isManager,
     required this.onCreate,
+    required this.onDayAttendanceToggle,
+    required this.onShowDayAttendees,
     required this.onAttendToggle,
     required this.onEdit,
     required this.onDelete,
@@ -40,7 +46,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
 
   DateTime _startOfWeek(DateTime d) {
     final day = _startOfDay(d);
-    final diff = (day.weekday + 1) % 7; // Saturday = 0
+    final diff = (day.weekday + 1) % 7;
     return day.subtract(Duration(days: diff));
   }
 
@@ -60,6 +66,28 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
   }
 
+  DiwaniyaCalendarDayAttendance? _attendanceForDay(DateTime day) {
+    for (final row in widget.dayAttendance) {
+      if (_sameDay(row.date, day)) return row;
+    }
+    return null;
+  }
+
+  int _totalGoingForDay(DateTime day) {
+    final row = _attendanceForDay(day);
+    if (row != null) return row.totalUniqueAttendeesCount;
+
+    final ids = <String>{};
+    for (final e in _eventsForDay(day)) {
+      if (e.isAttending) ids.add(UserService.currentName.trim());
+    }
+    return ids.length;
+  }
+
+  bool _isCurrentUserGoing(DateTime day) {
+    return _attendanceForDay(day)?.isCurrentUserAttending ?? false;
+  }
+
   List<DiwaniyaCalendarEvent> get _upcomingEvents {
     final now = DateTime.now();
     return widget.events
@@ -77,25 +105,21 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     }).length;
   }
 
-  int _selectedAttendanceCount() {
-    final ids = <String>{};
-    for (final e in _eventsForDay(_selectedDay)) {
-      if (e.isAttending) ids.add(UserService.currentName.trim());
-      // Backend currently returns aggregate count, not attendees list.
-      // We show event attendee totals separately in event cards.
-    }
-    return ids.length;
-  }
-
   String _summaryText() {
     final events = _eventsForDay(_selectedDay);
-    if (events.isEmpty) return 'لا توجد مناسبات اليوم';
+    final going = _totalGoingForDay(_selectedDay);
 
-    final total = events.length;
-    if (total == 1) return 'مناسبة واحدة اليوم';
-    if (total == 2) return 'مناسبتان اليوم';
-    if (total <= 10) return '$total مناسبات اليوم';
-    return '$total مناسبة اليوم';
+    if (events.isEmpty && going == 0) return 'لا توجد مناسبات اليوم';
+    if (events.isEmpty && going > 0) return '$going جايين اليوم';
+
+    final eventText = events.length == 1
+        ? 'مناسبة واحدة'
+        : events.length == 2
+            ? 'مناسبتان'
+            : '${events.length} مناسبات';
+
+    if (going > 0) return '$going جايين اليوم · $eventText';
+    return eventText;
   }
 
   String _headlineText() {
@@ -147,16 +171,16 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     return widget.isManager || event.createdByName.trim() == UserService.currentName.trim();
   }
 
+  bool _canAddForSelectedDay() {
+    return _eventsForDay(_selectedDay).length < 4;
+  }
+
   void _select(DateTime day) {
     setState(() => _selectedDay = _startOfDay(day));
   }
 
   void _goToday() {
     setState(() => _selectedDay = _startOfDay(DateTime.now()));
-  }
-
-  bool _canAddForSelectedDay() {
-    return _eventsForDay(_selectedDay).length < 4;
   }
 
   void _createForSelectedDay() {
@@ -169,6 +193,13 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     widget.onCreate(_selectedDay);
   }
 
+  void _toggleSelectedDayAttendance() {
+    widget.onDayAttendanceToggle(
+      _selectedDay,
+      !_isCurrentUserGoing(_selectedDay),
+    );
+  }
+
   void _openMonthPicker() {
     showModalBottomSheet(
       context: context,
@@ -177,6 +208,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
       builder: (_) => _MonthPickerSheet(
         initialDay: _selectedDay,
         eventsForDay: _eventsForDay,
+        attendanceCountForDay: _totalGoingForDay,
         onSelect: (day) {
           Navigator.pop(context);
           _select(day);
@@ -189,7 +221,8 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
   Widget build(BuildContext context) {
     final c = context.cl;
     final selectedEvents = _eventsForDay(_selectedDay);
-    final attendanceCount = _selectedAttendanceCount();
+    final goingCount = _totalGoingForDay(_selectedDay);
+    final isGoing = _isCurrentUserGoing(_selectedDay);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -212,27 +245,36 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             title: _dateTitle(_selectedDay),
             headline: _headlineText(),
             summary: _summaryText(),
-            attendanceCount: attendanceCount,
+            goingCount: goingCount,
+            isGoing: isGoing,
             onToday: _goToday,
             onMonth: _openMonthPicker,
             onCreate: _createForSelectedDay,
+            onToggleGoing: _toggleSelectedDayAttendance,
+            onShowGoing: () => widget.onShowDayAttendees(_selectedDay),
           ),
           const SizedBox(height: 14),
           _WeekStrip(
             days: _weekDays,
             selectedDay: _selectedDay,
             eventsForDay: _eventsForDay,
+            attendanceCountForDay: _totalGoingForDay,
+            isCurrentUserGoing: _isCurrentUserGoing,
             onSelect: _select,
           ),
           const SizedBox(height: 14),
           _SelectedDayPanel(
             selectedDay: _selectedDay,
             events: selectedEvents,
+            goingCount: goingCount,
+            isGoing: isGoing,
             canManage: _canManage,
             onCreate: _createForSelectedDay,
             onAttendToggle: widget.onAttendToggle,
             onEdit: widget.onEdit,
             onDelete: widget.onDelete,
+            onToggleDayAttendance: _toggleSelectedDayAttendance,
+            onShowGoing: () => widget.onShowDayAttendees(_selectedDay),
             timeText: _timeText,
           ),
         ],
@@ -245,19 +287,25 @@ class _CalendarTopBar extends StatelessWidget {
   final String title;
   final String headline;
   final String summary;
-  final int attendanceCount;
+  final int goingCount;
+  final bool isGoing;
   final VoidCallback onToday;
   final VoidCallback onMonth;
   final VoidCallback onCreate;
+  final VoidCallback onToggleGoing;
+  final VoidCallback onShowGoing;
 
   const _CalendarTopBar({
     required this.title,
     required this.headline,
     required this.summary,
-    required this.attendanceCount,
+    required this.goingCount,
+    required this.isGoing,
     required this.onToday,
     required this.onMonth,
     required this.onCreate,
+    required this.onToggleGoing,
+    required this.onShowGoing,
   });
 
   @override
@@ -267,7 +315,7 @@ class _CalendarTopBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
-          onTap: onToday,
+          onTap: onCreate,
           borderRadius: BorderRadius.circular(15),
           child: Container(
             width: 42,
@@ -276,7 +324,7 @@ class _CalendarTopBar extends StatelessWidget {
               color: c.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(15),
             ),
-            child: Icon(Icons.today_rounded, color: c.accent, size: 22),
+            child: Icon(Icons.event_available_rounded, color: c.accent, size: 22),
           ),
         ),
         const SizedBox(width: 11),
@@ -303,13 +351,17 @@ class _CalendarTopBar extends StatelessWidget {
                   height: 1.25,
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(
-                attendanceCount > 0 ? '$attendanceCount حضور مسجل · $summary' : summary,
-                style: TextStyle(
-                  color: c.t2,
-                  fontSize: 12.2,
-                  fontWeight: FontWeight.w800,
+              const SizedBox(height: 6),
+              InkWell(
+                onTap: goingCount > 0 ? onShowGoing : null,
+                borderRadius: BorderRadius.circular(999),
+                child: Text(
+                  goingCount > 0 ? '$goingCount جايين اليوم · $summary' : summary,
+                  style: TextStyle(
+                    color: goingCount > 0 ? c.accent : c.t2,
+                    fontSize: 12.2,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -319,10 +371,11 @@ class _CalendarTopBar extends StatelessWidget {
         Column(
           children: [
             _MiniAction(
-              label: 'مناسبة',
-              icon: Icons.add_rounded,
-              onTap: onCreate,
+              label: isGoing ? 'حضورك مسجل' : 'جاي اليوم',
+              icon: isGoing ? Icons.check_circle_rounded : Icons.how_to_reg_rounded,
+              onTap: onToggleGoing,
               filled: true,
+              compact: isGoing,
             ),
             const SizedBox(height: 8),
             _MiniAction(
@@ -343,12 +396,14 @@ class _MiniAction extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool filled;
+  final bool compact;
 
   const _MiniAction({
     required this.label,
     required this.icon,
     required this.onTap,
     required this.filled,
+    this.compact = false,
   });
 
   @override
@@ -359,8 +414,8 @@ class _MiniAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(13),
       child: Container(
-        width: 82,
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
+        width: compact ? 96 : 88,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
           color: filled ? c.accent : c.accent.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(14),
@@ -371,12 +426,16 @@ class _MiniAction extends StatelessWidget {
           children: [
             Icon(icon, color: fg, size: 16),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: fg,
-                fontSize: 11.6,
-                fontWeight: FontWeight.w900,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ],
@@ -390,12 +449,16 @@ class _WeekStrip extends StatefulWidget {
   final List<DateTime> days;
   final DateTime selectedDay;
   final List<DiwaniyaCalendarEvent> Function(DateTime day) eventsForDay;
+  final int Function(DateTime day) attendanceCountForDay;
+  final bool Function(DateTime day) isCurrentUserGoing;
   final void Function(DateTime day) onSelect;
 
   const _WeekStrip({
     required this.days,
     required this.selectedDay,
     required this.eventsForDay,
+    required this.attendanceCountForDay,
+    required this.isCurrentUserGoing,
     required this.onSelect,
   });
 
@@ -436,7 +499,7 @@ class _WeekStripState extends State<_WeekStrip> {
 
   DateTime _startOfWeek(DateTime d) {
     final day = DateTime(d.year, d.month, d.day);
-    final diff = (day.weekday + 1) % 7; // Saturday = 0
+    final diff = (day.weekday + 1) % 7;
     return day.subtract(Duration(days: diff));
   }
 
@@ -500,6 +563,8 @@ class _WeekStripState extends State<_WeekStrip> {
                       selected: _sameDay(day, widget.selectedDay),
                       currentMonth: true,
                       events: widget.eventsForDay(day),
+                      attendanceCount: widget.attendanceCountForDay(day),
+                      isCurrentUserGoing: widget.isCurrentUserGoing(day),
                       onTap: () => widget.onSelect(day),
                     ),
                   ),
@@ -519,6 +584,8 @@ class _DayCell extends StatelessWidget {
   final bool selected;
   final bool currentMonth;
   final List<DiwaniyaCalendarEvent> events;
+  final int attendanceCount;
+  final bool isCurrentUserGoing;
   final VoidCallback onTap;
   final bool compact;
 
@@ -529,10 +596,12 @@ class _DayCell extends StatelessWidget {
     required this.currentMonth,
     required this.events,
     required this.onTap,
+    this.attendanceCount = 0,
+    this.isCurrentUserGoing = false,
     this.compact = false,
   });
 
-  bool get _hasAttendance => events.any((e) => e.isAttending);
+  bool get _hasEvent => events.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -583,7 +652,7 @@ class _DayCell extends StatelessWidget {
                       height: 1,
                     ),
                   ),
-                  if (events.isNotEmpty)
+                  if (_hasEvent || attendanceCount > 0)
                     Positioned(
                       bottom: 3,
                       child: Container(
@@ -628,7 +697,7 @@ class _DayCell extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (events.isNotEmpty)
+                        if (attendanceCount > 0)
                           Container(
                             constraints: const BoxConstraints(minWidth: 12),
                             padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 0.5),
@@ -639,7 +708,7 @@ class _DayCell extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
-                              events.length == 1 ? '•' : '${events.length}',
+                              '$attendanceCount',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: selected ? Colors.white : c.accent,
@@ -648,8 +717,17 @@ class _DayCell extends StatelessWidget {
                                 height: 1,
                               ),
                             ),
+                          )
+                        else if (_hasEvent)
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: selected ? Colors.white : c.accent,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        if (_hasAttendance) ...[
+                        if (isCurrentUserGoing) ...[
                           const SizedBox(width: 2.5),
                           Icon(
                             Icons.check_circle_rounded,
@@ -670,21 +748,29 @@ class _DayCell extends StatelessWidget {
 class _SelectedDayPanel extends StatelessWidget {
   final DateTime selectedDay;
   final List<DiwaniyaCalendarEvent> events;
+  final int goingCount;
+  final bool isGoing;
   final bool Function(DiwaniyaCalendarEvent event) canManage;
   final VoidCallback onCreate;
   final void Function(DiwaniyaCalendarEvent event) onAttendToggle;
   final void Function(DiwaniyaCalendarEvent event) onEdit;
   final void Function(DiwaniyaCalendarEvent event) onDelete;
+  final VoidCallback onToggleDayAttendance;
+  final VoidCallback onShowGoing;
   final String Function(DateTime dt) timeText;
 
   const _SelectedDayPanel({
     required this.selectedDay,
     required this.events,
+    required this.goingCount,
+    required this.isGoing,
     required this.canManage,
     required this.onCreate,
     required this.onAttendToggle,
     required this.onEdit,
     required this.onDelete,
+    required this.onToggleDayAttendance,
+    required this.onShowGoing,
     required this.timeText,
   });
 
@@ -699,52 +785,29 @@ class _SelectedDayPanel extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.inputBg,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: c.border.withValues(alpha: 0.58)),
+          border: Border.all(color: c.border.withValues(alpha: 0.38)),
         ),
         child: Row(
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: c.card,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(Icons.event_busy_rounded, color: c.t3, size: 19),
-            ),
-            const SizedBox(width: 11),
+            Icon(Icons.groups_rounded, color: c.accent, size: 21),
+            const SizedBox(width: 10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'لا توجد مناسبات',
-                    style: TextStyle(
-                      color: c.t1,
-                      fontSize: 13.6,
-                      fontWeight: FontWeight.w900,
-                    ),
+              child: InkWell(
+                onTap: goingCount > 0 ? onShowGoing : null,
+                borderRadius: BorderRadius.circular(12),
+                child: Text(
+                  goingCount > 0 ? '$goingCount جايين اليوم' : 'لا توجد مناسبات اليوم',
+                  style: TextStyle(
+                    color: goingCount > 0 ? c.accent : c.t1,
+                    fontSize: 13.4,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'أضف مناسبة لهذا اليوم.',
-                    style: TextStyle(
-                      color: c.t3,
-                      fontSize: 12.1,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-            TextButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add_rounded, size: 17),
-              label: const Text('إضافة'),
-              style: TextButton.styleFrom(
-                foregroundColor: c.accent,
-                textStyle: const TextStyle(fontWeight: FontWeight.w900),
-              ),
+            TextButton(
+              onPressed: onToggleDayAttendance,
+              child: Text(isGoing ? 'إلغاء' : 'جاي'),
             ),
           ],
         ),
@@ -1019,11 +1082,13 @@ class _TinyBadge extends StatelessWidget {
 class _MonthPickerSheet extends StatefulWidget {
   final DateTime initialDay;
   final List<DiwaniyaCalendarEvent> Function(DateTime day) eventsForDay;
+  final int Function(DateTime day) attendanceCountForDay;
   final void Function(DateTime day) onSelect;
 
   const _MonthPickerSheet({
     required this.initialDay,
     required this.eventsForDay,
+    required this.attendanceCountForDay,
     required this.onSelect,
   });
 
@@ -1140,6 +1205,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
                   selected: selected,
                   currentMonth: day.month == _month.month,
                   events: widget.eventsForDay(day),
+                  attendanceCount: widget.attendanceCountForDay(day),
                   compact: true,
                   onTap: () => widget.onSelect(day),
                 );
@@ -1151,6 +1217,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
     );
   }
 }
+
 
 class HomeCalendarEventDraft {
   final String title;
