@@ -317,14 +317,34 @@ class _CalendarTopBar extends StatelessWidget {
         InkWell(
           onTap: onCreate,
           borderRadius: BorderRadius.circular(15),
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(Icons.event_available_rounded, color: c.accent, size: 22),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: c.accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: c.accent.withValues(alpha: 0.16)),
+                ),
+                child: Icon(Icons.calendar_month_rounded, color: c.accent, size: 22),
+              ),
+              PositionedDirectional(
+                top: -4,
+                end: -4,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: c.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: c.card, width: 2),
+                  ),
+                  child: const Icon(Icons.add_rounded, size: 12, color: Colors.white),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 11),
@@ -371,11 +391,12 @@ class _CalendarTopBar extends StatelessWidget {
         Column(
           children: [
             _MiniAction(
-              label: isGoing ? 'حضورك مسجل' : 'جاي اليوم',
-              icon: isGoing ? Icons.check_circle_rounded : Icons.how_to_reg_rounded,
+              label: isGoing ? 'ما أقدر' : 'جاي اليوم',
+              icon: isGoing ? Icons.close_rounded : Icons.how_to_reg_rounded,
               onTap: onToggleGoing,
-              filled: true,
-              compact: isGoing,
+              filled: false,
+              danger: isGoing,
+              compact: false,
             ),
             const SizedBox(height: 8),
             _MiniAction(
@@ -397,6 +418,7 @@ class _MiniAction extends StatelessWidget {
   final VoidCallback onTap;
   final bool filled;
   final bool compact;
+  final bool danger;
 
   const _MiniAction({
     required this.label,
@@ -404,22 +426,40 @@ class _MiniAction extends StatelessWidget {
     required this.onTap,
     required this.filled,
     this.compact = false,
+    this.danger = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final fg = filled ? Colors.white : c.accent;
+    final dangerColor = c.error;
+    final fg = filled
+        ? Colors.white
+        : danger
+            ? dangerColor
+            : c.accent;
+
+    final bg = filled
+        ? c.accent
+        : danger
+            ? dangerColor.withValues(alpha: 0.08)
+            : c.accent.withValues(alpha: 0.06);
+
+    final borderColor = danger
+        ? dangerColor.withValues(alpha: 0.18)
+        : c.accent.withValues(alpha: 0.16);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(13),
-      child: Container(
-        width: compact ? 96 : 88,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        width: 88,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
         decoration: BoxDecoration(
-          color: filled ? c.accent : c.accent.withValues(alpha: 0.08),
+          color: bg,
           borderRadius: BorderRadius.circular(14),
-          border: filled ? null : Border.all(color: c.accent.withValues(alpha: 0.20)),
+          border: filled ? null : Border.all(color: borderColor),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -805,9 +845,18 @@ class _SelectedDayPanel extends StatelessWidget {
                 ),
               ),
             ),
-            TextButton(
-              onPressed: onToggleDayAttendance,
-              child: Text(isGoing ? 'إلغاء' : 'جاي'),
+            IconButton(
+              tooltip: 'إضافة مناسبة',
+              onPressed: onCreate,
+              style: IconButton.styleFrom(
+                foregroundColor: c.accent,
+                backgroundColor: c.accent.withValues(alpha: 0.08),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: c.accent.withValues(alpha: 0.16)),
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 28, weight: 800),
             ),
           ],
         ),
@@ -1153,7 +1202,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
               children: [
                 IconButton(
                   onPressed: () => setState(() => _month = DateTime(_month.year, _month.month - 1)),
-                  icon: Icon(Icons.chevron_right_rounded, color: c.t2),
+                  icon: Icon(Icons.chevron_left_rounded, color: c.t2),
                 ),
                 Expanded(
                   child: Text(
@@ -1164,7 +1213,7 @@ class _MonthPickerSheetState extends State<_MonthPickerSheet> {
                 ),
                 IconButton(
                   onPressed: () => setState(() => _month = DateTime(_month.year, _month.month + 1)),
-                  icon: Icon(Icons.chevron_left_rounded, color: c.t2),
+                  icon: Icon(Icons.chevron_right_rounded, color: c.t2),
                 ),
               ],
             ),
