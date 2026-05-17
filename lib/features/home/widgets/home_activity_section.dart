@@ -36,7 +36,7 @@ class HomeActivitySection extends StatelessWidget {
             color: c.t1,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         if (activities.isEmpty)
           Container(
             width: double.infinity,
@@ -131,46 +131,91 @@ class HomeActivityRow extends StatelessWidget {
 
 String _polishedActivityMessage(String message) {
   final text = message.trim();
+  if (text.isEmpty) return text;
 
-  String? moveActorFirst(String verb) {
+  List<String> words(String value) =>
+      value.trim().split(RegExp(r'\s+')).where((e) => e.trim().isNotEmpty).toList();
+
+  String joinNonEmpty(Iterable<String> parts) =>
+      parts.where((e) => e.trim().isNotEmpty).join(' ').trim();
+
+  // أنشأ حمزة تصويتًا جديدًا -> حمزة أنشأ تصويتًا جديدًا
+  String? moveByKnownTail(String verb, List<String> tails) {
     final prefix = '$verb ';
     if (!text.startsWith(prefix)) return null;
+
     final rest = text.substring(prefix.length).trim();
-    if (rest.isEmpty) return null;
-
-    // Known action tails used in current activity messages.
-    final tails = <String>[
-      ' تصويتًا جديدًا',
-      ' تصويتاً جديداً',
-      ' مصروف:',
-      ' من الديوانية',
-      ' مناسبة',
-      ' صورة',
-    ];
-
     for (final tail in tails) {
       final idx = rest.indexOf(tail);
       if (idx > 0) {
         final actor = rest.substring(0, idx).trim();
         final target = rest.substring(idx).trim();
-        if (actor.isNotEmpty) {
+        if (actor.isNotEmpty && target.isNotEmpty) {
           return '$actor $verb $target';
         }
       }
     }
-
-    final parts = rest.split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      final actor = parts.take(2).join(' ');
-      final target = parts.skip(2).join(' ');
-      return target.isEmpty ? '$actor $verb' : '$actor $verb $target';
-    }
-
     return null;
   }
 
-  for (final verb in ['أنشأ', 'أضاف', 'أزال', 'حذف', 'عدّل', 'قبل', 'رفض']) {
-    final moved = moveActorFirst(verb);
+  // أزال حمزة ضي من الديوانية -> حمزة أزال ضي من الديوانية
+  String? moveFirstActorThenRest(String verb) {
+    final prefix = '$verb ';
+    if (!text.startsWith(prefix)) return null;
+
+    final restWords = words(text.substring(prefix.length));
+    if (restWords.isEmpty) return null;
+
+    final actor = restWords.first;
+    final target = joinNonEmpty(restWords.skip(1));
+    return target.isEmpty ? '$actor $verb' : '$actor $verb $target';
+  }
+
+  // انضم عبدالله إلى الديوانية -> عبدالله انضم إلى الديوانية
+  String? moveJoinedActor() {
+    const verb = 'انضم';
+    const prefix = '$verb ';
+    if (!text.startsWith(prefix)) return null;
+
+    final rest = text.substring(prefix.length).trim();
+    const tail = ' إلى الديوانية';
+    final idx = rest.indexOf(tail);
+    if (idx > 0) {
+      final actor = rest.substring(0, idx).trim();
+      if (actor.isNotEmpty) return '$actor $verb$tail';
+    }
+
+    final parts = words(rest);
+    if (parts.isEmpty) return null;
+    final actor = parts.first;
+    final target = joinNonEmpty(parts.skip(1));
+    return target.isEmpty ? '$actor $verb' : '$actor $verb $target';
+  }
+
+  final byTail = moveByKnownTail('أنشأ', [
+        ' تصويتًا جديدًا',
+        ' تصويتاً جديداً',
+        ' مناسبة',
+      ]) ??
+      moveByKnownTail('أضاف', [
+        ' مصروف:',
+        ' صورة',
+        ' مقاضي',
+        ' مناسبة',
+      ]) ??
+      moveByKnownTail('عدّل', [
+        ' مناسبة',
+        ' تصويتًا',
+        ' تصويتاً',
+      ]);
+
+  if (byTail != null) return byTail;
+
+  final joined = moveJoinedActor();
+  if (joined != null) return joined;
+
+  for (final verb in ['أزال', 'حذف', 'قبل', 'رفض']) {
+    final moved = moveFirstActorThenRest(verb);
     if (moved != null) return moved;
   }
 
