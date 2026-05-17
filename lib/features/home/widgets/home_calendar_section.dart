@@ -695,7 +695,7 @@ class _SelectedDayPanel extends StatelessWidget {
     if (events.isEmpty) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: c.inputBg,
           borderRadius: BorderRadius.circular(18),
@@ -758,7 +758,7 @@ class _SelectedDayPanel extends StatelessWidget {
       children: [
         for (final event in visible)
           Padding(
-            padding: const EdgeInsets.only(bottom: 9),
+            padding: const EdgeInsets.only(bottom: 7),
             child: _EventCard(
               event: event,
               canManage: canManage(event),
@@ -825,15 +825,15 @@ class _EventCardState extends State<_EventCard> {
       onTap: () => setState(() => _expanded = !_expanded),
       borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 170),
+        duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
         decoration: BoxDecoration(
-          color: c.inputBg.withValues(alpha: 0.78),
+          color: c.inputBg.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: event.isAttending
-                ? c.success.withValues(alpha: 0.18)
-                : c.border.withValues(alpha: 0.16),
+                ? c.success.withValues(alpha: 0.16)
+                : c.border.withValues(alpha: 0.12),
           ),
         ),
         child: Column(
@@ -845,7 +845,7 @@ class _EventCardState extends State<_EventCard> {
                   PopupMenuButton<String>(
                     tooltip: 'إدارة المناسبة',
                     padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 19),
+                    icon: Icon(Icons.more_horiz_rounded, color: c.t3, size: 20),
                     onSelected: (value) {
                       if (value == 'edit') widget.onEdit();
                       if (value == 'delete') widget.onDelete();
@@ -861,16 +861,16 @@ class _EventCardState extends State<_EventCard> {
                     color: c.t3,
                     size: 20,
                   ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     event.title,
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       color: c.t1,
-                      fontSize: 14.2,
+                      fontSize: 14.4,
                       fontWeight: FontWeight.w900,
-                      height: 1.1,
+                      height: 1.08,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -885,10 +885,16 @@ class _EventCardState extends State<_EventCard> {
                 spacing: 6,
                 runSpacing: 5,
                 children: [
-                  _Pill(icon: Icons.schedule_rounded, label: widget.timeText(event.startsAt)),
-                  _Pill(icon: Icons.groups_rounded, label: '${event.attendeesCount} جاي'),
+                  _TinyBadge(
+                    icon: Icons.schedule_rounded,
+                    label: widget.timeText(event.startsAt),
+                  ),
+                  _TinyBadge(
+                    icon: Icons.groups_rounded,
+                    label: '${event.attendeesCount} جاي',
+                  ),
                   if (event.isAttending)
-                    _Pill(
+                    _TinyBadge(
                       icon: Icons.check_circle_rounded,
                       label: 'حضورك مسجل',
                       success: true,
@@ -909,8 +915,9 @@ class _EventCardState extends State<_EventCard> {
                         textAlign: TextAlign.right,
                         style: TextStyle(
                           color: c.t2,
-                          fontSize: 12.2,
+                          fontSize: 12.1,
                           height: 1.35,
+                          fontWeight: FontWeight.w600,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -920,30 +927,30 @@ class _EventCardState extends State<_EventCard> {
                     Align(
                       alignment: AlignmentDirectional.centerStart,
                       child: SizedBox(
-                        height: 36,
+                        height: 34,
                         child: event.isAttending
                             ? OutlinedButton(
                                 onPressed: widget.onAttendToggle,
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: c.t3,
-                                  side: BorderSide(color: c.border.withValues(alpha: 0.55)),
+                                  side: BorderSide(color: c.border.withValues(alpha: 0.42)),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
                                 ),
                                 child: const Text('إلغاء'),
                               )
                             : FilledButton.icon(
                                 onPressed: widget.onAttendToggle,
-                                icon: const Icon(Icons.how_to_reg_rounded, size: 16),
+                                icon: const Icon(Icons.how_to_reg_rounded, size: 15),
                                 label: const Text('جاي'),
                                 style: FilledButton.styleFrom(
                                   backgroundColor: c.accent,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
                                 ),
                               ),
                       ),
@@ -952,7 +959,7 @@ class _EventCardState extends State<_EventCard> {
                 ),
               ),
               crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 150),
+              duration: const Duration(milliseconds: 140),
             ),
           ],
         ),
@@ -961,12 +968,12 @@ class _EventCardState extends State<_EventCard> {
   }
 }
 
-class _Pill extends StatelessWidget {
+class _TinyBadge extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool success;
 
-  const _Pill({
+  const _TinyBadge({
     required this.icon,
     required this.label,
     this.success = false,
@@ -979,20 +986,28 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: c.card.withValues(alpha: 0.72),
+        color: success
+            ? c.success.withValues(alpha: 0.10)
+            : c.card.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: success
+              ? c.success.withValues(alpha: 0.12)
+              : c.border.withValues(alpha: 0.08),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: 12.5, color: color),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: success ? c.success : c.t2,
-              fontSize: 10.8,
-              fontWeight: FontWeight.w800,
+              fontSize: 10.6,
+              fontWeight: FontWeight.w900,
+              height: 1,
             ),
           ),
         ],
