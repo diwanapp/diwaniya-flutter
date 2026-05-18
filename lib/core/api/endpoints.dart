@@ -75,4 +75,19 @@ abstract final class Endpoints {
 
   // ── Invites ──
   static String inviteAccept(String code) => '/invites/$code/accept';
+
+  // Scorekeeping / Baloot
+  static String scorekeepingCurrent(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/current';
+  static String scorekeepingGames(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/games';
+  static String scorekeepingPlayers(String diwaniyaId, String gameId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/games/$gameId/players';
+  static String scorekeepingRounds(String diwaniyaId, String gameId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/games/$gameId/rounds';
+  static String scorekeepingDealer(String diwaniyaId, String gameId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/games/$gameId/dealer';
+  static String scorekeepingLeaderboard(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/scorekeeping/leaderboard';
+
 }
