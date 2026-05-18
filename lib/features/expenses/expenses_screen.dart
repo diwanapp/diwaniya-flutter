@@ -1464,7 +1464,7 @@ class _AnalyticsSheet extends StatelessWidget {
             Row(children: [
               Expanded(
                   child: _AnalyticsKpi(
-                      label: 'تسويات مؤكدة',
+                      label: 'حسابات مؤكدة',
                       value: confirmedSettled,
                       icon: Icons.verified_rounded,
                       c: c,
@@ -1816,7 +1816,7 @@ class _NetPositionCard extends StatelessWidget {
           Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('موقفك المالي',
+              Text('رصيدك الحالي',
                   style: TextStyle(
                       fontSize: 12, color: c.t3, fontWeight: FontWeight.w600)),
               const SizedBox(height: 2),
@@ -1843,7 +1843,7 @@ class _NetPositionCard extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
               child: _MiniMoney(
-                  label: 'تسويات مفتوحة',
+                  label: 'حسابات مفتوحة',
                   amount: openSettlements,
                   color: c.warning,
                   c: c)),
@@ -1953,7 +1953,7 @@ class _MonthBar extends StatelessWidget {
           Row(children: [
             Icon(Icons.insights_rounded, size: 15, color: c.t3),
             const SizedBox(width: 6),
-            Text('ملخص الشهر',
+            Text('ملخص المصاريف',
                 style: TextStyle(
                     fontSize: 12, fontWeight: FontWeight.w700, color: c.t2)),
             const Spacer(),
@@ -1967,9 +1967,9 @@ class _MonthBar extends StatelessWidget {
           ]),
           const SizedBox(height: 10),
           Row(children: [
-            _MStat('إجمالي الشهر', '${total.toInt()}', c.t1, c),
+            _MStat('إجمالي المصاريف', '${total.toInt()}', c.t1, c),
             _MDv(c),
-            _MStat('دفعت أنت', '${settled.toInt()}', c.success, c),
+            _MStat('دفعت', '${settled.toInt()}', c.success, c),
             _MDv(c),
             _MStat('حصتك', '${share.toInt()}', c.info, c),
           ]),
@@ -1977,9 +1977,9 @@ class _MonthBar extends StatelessWidget {
           Row(children: [
             _MStat('منذ التأسيس', '${sinceStart.toInt()}', c.accent, c),
             _MDv(c),
-            _MStat('تسويات مفتوحة', '${unpaid.toInt()}', c.warning, c),
+            _MStat('حسابات مفتوحة', '${unpaid.toInt()}', c.warning, c),
             _MDv(c),
-            _MStat('نسبة دفعك', '$paidPct%', c.t2, c),
+            _MStat('حصتك من الدفع', '$paidPct%', c.t2, c),
           ]),
         ]));
   }
@@ -2044,8 +2044,8 @@ class _TabBarW extends StatelessWidget {
             labelPadding: EdgeInsets.zero,
             tabs: const [
               Tab(text: 'المصاريف'),
-              Tab(text: 'الأعضاء'),
-              Tab(text: 'التسويات')
+              Tab(text: 'للتحويل'),
+              Tab(text: 'الحسابات')
             ]));
   }
 }
@@ -2451,7 +2451,7 @@ class _SetTabState extends State<_SetTab> with AutomaticKeepAliveClientMixin {
     final c = context.cl;
     if (widget.settlements.isEmpty)
       return Center(
-          child: Text('لا توجد تسويات', style: TextStyle(color: c.t3)));
+          child: Text('لا توجد حسابات', style: TextStyle(color: c.t3)));
     final sorted = List<Settlement>.from(widget.settlements)
       ..sort((a, b) => b.date.compareTo(a.date));
     return ListView.builder(

@@ -9,7 +9,7 @@ class Ar {
   static const quickActions = 'إجراءات سريعة';
   static const recentActivity = 'آخر النشاطات';
   static const viewAll = 'عرض الكل';
-  static const membersCount = 'الأعضاء';
+  static const membersCount = 'للتحويل';
   static const currentBalance = 'الرصيد';
   static const activePolls = 'تصويت نشط';
   static const activePollsLabel = 'تصويتات نشطة';
@@ -22,7 +22,7 @@ class Ar {
   static const splitPercentage = 'نسبة مئوية';
   static const splitFixed = 'مبلغ محدد';
   static const splitSelected = 'أشخاص محددين';
-  static const settlement = 'تسوية';
+  static const settlement = 'تصافينا';
   static const markSettled = 'تم التسديد';
   static const owesTo = 'يدين لـ';
   static const filter = 'تصفية';
@@ -42,8 +42,8 @@ class Ar {
   static const paidLabel = 'مسدد';
   static const unpaidLabel = 'غير مسدد';
   static const totalMonth = 'إجمالي هذا الشهر';
-  static const confirmSettle = 'تأكيد التسوية';
-  static const settledSuccess = 'تمت التسوية بنجاح';
+  static const confirmSettle = 'تأكيد التصافينا';
+  static const settledSuccess = 'تمت التصافينا بنجاح';
   static const lana = 'لنا';
   static const lahom = 'لهم';
   static const newGame = 'لعبة جديدة';
@@ -94,7 +94,7 @@ class Ar {
   static const receipt = 'إيصال';
   static const attachReceipt = 'إرفاق إيصال';
   static const receiptAttached = 'تم إرفاق الإيصال';
-  static const optimizedSettlements = 'تسويات مقترحة (أقل عدد تحويلات)';
+  static const optimizedSettlements = 'حسابات مقترحة (أقل عدد تحويلات)';
   static const cancel = 'إلغاء';
   static const confirm = 'تأكيد';
   static const delete = 'حذف';
@@ -112,7 +112,7 @@ class Ar {
   static const memberUnit = 'عضو';
   static const manager = 'مدير';
   static const member = 'عضو';
-  static const balancesTitle = 'الأرصدة والتسويات';
+  static const balancesTitle = 'الأرصدة والحسابات';
   static const noDebts = 'الكل متساوي — ما في ديون';
   static const paysTo = 'يدفع لـ';
   static const noActivity = 'لا توجد نشاطات بعد';
@@ -224,18 +224,18 @@ class Ar {
   static const deletePhotoConfirm = 'هل تريد حذف هذه الصورة؟';
 
   // Create diwaniya flow
-  static const addInitialMembers = 'أضف الأعضاء';
+  static const addInitialMembers = 'أضف للتحويل';
   static const addInitialMembersSubtitle =
       'أضف أسماء أعضاء الديوانية الأساسيين. تقدر تضيف المزيد لاحقًا.';
   static const memberNameHint = 'اسم العضو';
   static const noMembersYet = 'لم تضف أعضاء بعد';
   static const codeStepSubtitle =
-      'شارك هذا الكود مع الأعضاء للانضمام إلى الديوانية.';
+      'شارك هذا الكود مع للتحويل للانضمام إلى الديوانية.';
 
   // Subscription
   static const sarCurrency = 'ر.س';
   static const addSubscriptionAsExpense = 'إضافة الاشتراك كمصروف؟';
-  static const splitEquallyAmongMembers = 'تقسيم بالتساوي على الأعضاء';
+  static const splitEquallyAmongMembers = 'تقسيم بالتساوي على للتحويل';
   static const addExpenseNow = 'أضف كمصروف';
   static const addLater = 'لاحقًا';
   static const subscriptionExpenseTitle = 'اشتراك الديوانية';
@@ -299,7 +299,7 @@ class Ar {
       'الانضمام المحلي يعمل للديوانيات المحفوظة على هذا الجهاز حاليًا.';
   static const availableLocalCodes = 'عدد الأكواد المحلية المتاحة:';
   static const createDiwaniyaDetails =
-      'أدخل معلومات ديوانيتكم وابدأ بدعوة الأعضاء بعدها';
+      'أدخل معلومات ديوانيتكم وابدأ بدعوة للتحويل بعدها';
   static const diwaniyaName = 'اسم الديوانية';
   static const diwaniyaNameHint = 'مثال: ديوانية الخميس';
   static const city = 'المدينة';
@@ -320,7 +320,7 @@ class Ar {
   static const joinNow = 'انضم الآن';
   static const plansTitle = 'اختر خطة الديوانية';
   static const plansSubtitle =
-      'الاشتراك يخص صاحب الديوانية فقط، بينما ينضم الأعضاء دون رسوم.';
+      'الاشتراك يخص صاحب الديوانية فقط، بينما ينضم للتحويل دون رسوم.';
   static const monthlyPlan = 'الخطة الشهرية';
   static const monthlyPrice = '49 ريال / شهر';
   static const yearlyPlan = 'الخطة السنوية';
