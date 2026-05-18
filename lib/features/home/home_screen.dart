@@ -1692,66 +1692,156 @@ class _HomeScreenState extends State<HomeScreen> {
                       onEdit: (event) => _openCreateCalendarEvent(initial: event),
                       onDelete: _deleteCalendarEvent,
                     ),
-                    const SizedBox(height: 12),
-                    const HomeAdBanner(),
-                    const SizedBox(height: 10),
-                    if (_activePoll != null) ...[
-                      GestureDetector(
-                        onTap: _openPolls,
-                        child: HomePollBanner(
-                          poll: _activePoll!,
-                          activeCount: _activePolls,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (_showUpgradeBanner) ...[
-                      _HomeUpgradeBanner(
-                        onTap: _openUpgradeFromBanner,
-                        onDismiss: _dismissUpgradeBanner,
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    HomeStatsSection(
-                      memberCount: _members.length,
-                      balanceStr: balStr,
-                      balanceColor: bal >= 0 ? c.success : c.error,
-                      activePolls: _activePolls,
-                      maqadiNeeded: _maqadiNeeded,
-                      chatPreview: _chatPreview,
-                      chatSender: _chatSender,
-                      chatUnread: _chatUnread,
-                      albumCount: _albumCount,
-                      onOpenMembers: _openMembers,
-                      onOpenBalances: _openBalances,
-                      onOpenPolls: _openPolls,
-                      onOpenMaqadi: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                const MaqadiScreen(initialFilter: 'needed')),
-                      ),
-                      onOpenChat: () => context.push(AppRoutes.chat),
-                      onOpenAlbum: _openAlbum,
-                    ),
                     const SizedBox(height: 18),
+                    const _HomeVisualBreathingSpace(
+                      child: HomeAdBanner(),
+                    ),
+                    const SizedBox(height: 20),
+                    _HomeVisualGroup(
+                      title: 'نبض الديوانية',
+                      child: Column(
+                        children: [
+                          if (_activePoll != null) ...[
+                            GestureDetector(
+                              onTap: _openPolls,
+                              child: HomePollBanner(
+                                poll: _activePoll!,
+                                activeCount: _activePolls,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          if (_showUpgradeBanner) ...[
+                            _HomeUpgradeBanner(
+                              onTap: _openUpgradeFromBanner,
+                              onDismiss: _dismissUpgradeBanner,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          HomeStatsSection(
+                            memberCount: _members.length,
+                            balanceStr: balStr,
+                            balanceColor: bal >= 0 ? c.success : c.error,
+                            activePolls: _activePolls,
+                            maqadiNeeded: _maqadiNeeded,
+                            chatPreview: _chatPreview,
+                            chatSender: _chatSender,
+                            chatUnread: _chatUnread,
+                            albumCount: _albumCount,
+                            onOpenMembers: _openMembers,
+                            onOpenBalances: _openBalances,
+                            onOpenPolls: _openPolls,
+                            onOpenMaqadi: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const MaqadiScreen(initialFilter: 'needed')),
+                            ),
+                            onOpenChat: () => context.push(AppRoutes.chat),
+                            onOpenAlbum: _openAlbum,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 22),
                     HomeQuickActionsSection(
                       onAddExpense: () => context.go(AppRoutes.expenses),
                       onCreatePoll: _openCreatePoll,
                       onAddMaqadi: () => context.go(AppRoutes.maqadi),
                       onCapturePhoto: _capturePhotoQuick,
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 24),
                     HomeActivitySection(
                         activities: _activities
                             .where((a) => !a.type.startsWith('chat'))
                             .toList()),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 110),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _HomeVisualBreathingSpace extends StatelessWidget {
+  final Widget child;
+
+  const _HomeVisualBreathingSpace({
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: c.accent.withValues(alpha: 0.035),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _HomeVisualGroup extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final bool compact;
+
+  const _HomeVisualGroup({
+    required this.title,
+    required this.child,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        compact ? 13 : 12,
+        compact ? 12 : 13,
+        compact ? 13 : 12,
+        compact ? 13 : 14,
+      ),
+      decoration: BoxDecoration(
+        color: c.card.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: c.border.withValues(alpha: 0.055),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 2, end: 2, bottom: 11),
+            child: Text(
+              title,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: c.t1,
+                fontSize: 16.2,
+                fontWeight: FontWeight.w900,
+                height: 1.15,
+              ),
+            ),
+          ),
+          child,
+        ],
       ),
     );
   }
