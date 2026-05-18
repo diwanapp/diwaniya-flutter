@@ -177,48 +177,54 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
   }
 }
 
+
 class _SummaryCard extends StatelessWidget {
   final int pendingCount;
   final int historyCount;
 
-  const _SummaryCard({required this.pendingCount, required this.historyCount});
+  const _SummaryCard({
+    required this.pendingCount,
+    required this.historyCount,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final title = pendingCount == 0
-        ? 'لا توجد طلبات معلقة'
-        : pendingCount == 1
-            ? 'لديك طلب واحد بانتظار الموافقة'
-            : 'لديك $pendingCount طلبات بانتظار الموافقة';
-    final body = pendingCount == 0
-        ? 'يمكنك متابعة سجل طلباتك السابقة أو الرجوع للرئيسية.'
-        : 'تم إرسال الطلب، وبانتظار موافقة أحد مدراء الديوانية.';
+    final hasPending = pendingCount > 0;
+
+    final title = hasPending
+        ? pendingCount == 1
+            ? 'لديك طلب بانتظار الموافقة'
+            : 'لديك $pendingCount طلبات بانتظار الموافقة'
+        : 'لا توجد طلبات معلقة';
+
+    final body = hasPending
+        ? 'سيتم إشعارك عند قبول الطلب أو رفضه.'
+        : 'كل طلباتك الحالية مكتملة. يمكنك متابعة السجل أو الرجوع للرئيسية.';
+
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
       decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: c.border),
+        color: c.card.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.border.withValues(alpha: 0.10)),
       ),
       child: Row(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
+              color: (hasPending ? c.accent : c.success).withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
-              pendingCount == 0
-                  ? Icons.task_alt_rounded
-                  : Icons.hourglass_top_rounded,
-              color: c.accent,
-              size: 28,
+              hasPending ? Icons.hourglass_top_rounded : Icons.task_alt_rounded,
+              color: hasPending ? c.accent : c.success,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,21 +232,31 @@ class _SummaryCard extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15.2,
+                    fontWeight: FontWeight.w900,
                     color: c.t1,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   body,
-                  style: TextStyle(fontSize: 13, height: 1.55, color: c.t2),
+                  style: TextStyle(
+                    fontSize: 12.2,
+                    height: 1.45,
+                    color: c.t2,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 if (historyCount > 0) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 7),
                   Text(
                     'سجل الطلبات: $historyCount',
-                    style: TextStyle(fontSize: 12, color: c.t3),
+                    style: TextStyle(
+                      fontSize: 11.2,
+                      color: c.t3,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ],
@@ -252,6 +268,9 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+
+
+
 class _SectionTitle extends StatelessWidget {
   final String title;
   const _SectionTitle({required this.title});
@@ -259,16 +278,23 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    return Text(
-      title,
-      style: TextStyle(
-        color: c.t1,
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 2),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: c.t1,
+          fontSize: 16.2,
+          fontWeight: FontWeight.w900,
+          height: 1.2,
+        ),
       ),
     );
   }
 }
+
+
+
 
 class _RequestCard extends StatelessWidget {
   final JoinRequest request;
@@ -281,26 +307,27 @@ class _RequestCard extends StatelessWidget {
     final name = request.diwaniyaName.trim().isEmpty
         ? 'ديوانية غير معروفة'
         : request.diwaniyaName.trim();
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        color: c.card.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.10)),
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              color: color.withValues(alpha: 0.11),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(_statusIcon(), color: color, size: 23),
+            child: Icon(_statusIcon(), color: color, size: 21),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,25 +338,35 @@ class _RequestCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: c.t1,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  _statusText(),
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14.2,
+                    fontWeight: FontWeight.w900,
+                    height: 1.15,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _dateText(),
-                  style: TextStyle(color: c.t3, fontSize: 11.5),
+                  _statusText(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12.3,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _dateText(),
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              color: c.t3,
+              fontSize: 10.8,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
             ),
           ),
         ],
@@ -357,8 +394,8 @@ class _RequestCard extends StatelessWidget {
 
   String _dateText() {
     final resolved = request.resolvedAt;
-    if (resolved != null) return 'آخر تحديث: ${_formatDate(resolved)}';
-    return 'تاريخ الطلب: ${_formatDate(request.requestedAt)}';
+    final d = resolved ?? request.requestedAt;
+    return _formatDate(d);
   }
 
   String _formatDate(DateTime d) {
@@ -367,6 +404,9 @@ class _RequestCard extends StatelessWidget {
     return '${d.year}/$mm/$dd';
   }
 }
+
+
+
 
 class _InfoCard extends StatelessWidget {
   final IconData icon;
@@ -384,34 +424,39 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
-        color: c.inputBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.border),
+        color: c.card.withValues(alpha: 0.86),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.10)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  _clean(title),
                   style: TextStyle(
                     color: c.t1,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
-                  body,
-                  style: TextStyle(color: c.t2, fontSize: 12.5, height: 1.55),
+                  _clean(body),
+                  style: TextStyle(
+                    color: c.t2,
+                    fontSize: 12,
+                    height: 1.42,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -420,4 +465,14 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
+
+  String _clean(String value) {
+    if (value.trim().isEmpty) return '';
+    if (value.contains('O') || value.contains('U,')) {
+      return 'لا توجد بيانات للعرض حالياً.';
+    }
+    return value;
+  }
 }
+
+
