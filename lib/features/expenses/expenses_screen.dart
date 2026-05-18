@@ -364,28 +364,25 @@ class _ExpensesScreenState extends State<ExpensesScreen>
           ),
         ])),
       ]),
-      floatingActionButton: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: FloatingActionButton.extended(
-                  heroTag: 'expenses_add_fab',
-                  onPressed: _openAddSheet,
-                  backgroundColor: c.accent,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(13)),
-                  label: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.add_rounded, color: c.tInverse, size: 20),
-                    const SizedBox(width: 8),
-                    Text(Ar.addExpense,
-                        style: TextStyle(
-                            color: c.tInverse,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600)),
-                  ])))),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'expenses_add_fab',
+        onPressed: _openAddSheet,
+        backgroundColor: c.accent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        icon: Icon(Icons.add_rounded, color: c.tInverse, size: 21),
+        label: Text(
+          'مصروف',
+          style: TextStyle(
+            color: c.tInverse,
+            fontSize: 13.2,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
