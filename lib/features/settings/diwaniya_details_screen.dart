@@ -272,6 +272,10 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   }
 
   String _arabicForError(ApiException e) {
+    if (e.code == 'member_has_pending_dues' || e.statusCode == 409) {
+      return 'عندك مبالغ غير مسددة. صفّي الحسابات أولًا ثم بحفظ الله';
+    }
+
     switch (e.code) {
       case 'not_a_manager':
         return Ar.errNotAManager;
