@@ -1964,7 +1964,7 @@ class _MonthBar extends StatelessWidget {
           ]),
           const SizedBox(height: 10),
           Row(children: [
-            _MStat('إجمالي المصاريف', '${total.toInt()}', c.t1, c),
+            _MStat('إجمالي الشهر', '${total.toInt()}', c.t1, c),
             _MDv(c),
             _MStat('دفعت', '${settled.toInt()}', c.success, c),
             _MDv(c),
