@@ -95,8 +95,8 @@ class HomeStatsSection extends StatelessWidget {
                       label: 'التصويتات القائمة',
                       value: '$activePolls',
                       icon: Icons.how_to_vote_rounded,
-                      iconColor: const Color(0xFF60A5FA),
-                      iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                      iconColor: c.pollAccent,
+                      iconBg: c.pollAccent.withValues(alpha: 0.14),
                       onTap: onOpenPolls,
                     ),
                   ),
@@ -222,7 +222,8 @@ class HomeChatOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    const blue = Color(0xFF60A5FA);
+    final chatAccent = c.chatAccent;
+    final chatSurface = c.chatSurface;
     final hasPreview = preview != null && preview!.trim().isNotEmpty;
 
     return InkWell(
@@ -237,11 +238,11 @@ class HomeChatOverviewCard extends StatelessWidget {
             end: Alignment.bottomLeft,
             colors: [
               c.card,
-              blue.withValues(alpha: 0.040),
+              chatSurface.withValues(alpha: 0.60),
             ],
           ),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: blue.withValues(alpha: 0.13)),
+          border: Border.all(color: chatAccent.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.022),
@@ -256,13 +257,13 @@ class HomeChatOverviewCard extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: blue.withValues(alpha: 0.13),
+                color: chatAccent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(17),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chat_rounded,
                 size: 25,
-                color: blue,
+                color: chatAccent,
               ),
             ),
             const SizedBox(width: 14),
@@ -303,11 +304,11 @@ class HomeChatOverviewCard extends StatelessWidget {
                 height: 28,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
-                  color: blue,
+                  color: chatAccent,
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: blue.withValues(alpha: 0.18),
+                      color: chatAccent.withValues(alpha: 0.20),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),

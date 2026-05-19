@@ -18,7 +18,8 @@ class HomePollBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cl;
     final showMultiple = activeCount > 1;
-    const blue = Color(0xFF60A5FA);
+    final pollAccent = c.pollAccent;
+    final pollSurface = c.pollSurface;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 104),
@@ -28,15 +29,15 @@ class HomePollBanner extends StatelessWidget {
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
           colors: [
-            blue.withValues(alpha: 0.115),
-            blue.withValues(alpha: 0.045),
+            pollAccent.withValues(alpha: 0.16),
+            pollSurface.withValues(alpha: 0.54),
           ],
         ),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: blue.withValues(alpha: 0.14)),
+        border: Border.all(color: pollAccent.withValues(alpha: 0.22)),
         boxShadow: [
           BoxShadow(
-            color: blue.withValues(alpha: 0.060),
+            color: pollAccent.withValues(alpha: 0.075),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -48,13 +49,13 @@ class HomePollBanner extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: blue.withValues(alpha: 0.14),
+              color: pollAccent.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(17),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.how_to_vote_rounded,
               size: 25,
-              color: blue,
+              color: pollAccent,
             ),
           ),
           const SizedBox(width: 14),
@@ -96,11 +97,11 @@ class HomePollBanner extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: blue,
+              color: pollAccent,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: blue.withValues(alpha: 0.18),
+                  color: pollAccent.withValues(alpha: 0.20),
                   blurRadius: 11,
                   offset: const Offset(0, 5),
                 ),

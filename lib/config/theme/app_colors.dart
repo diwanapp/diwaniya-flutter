@@ -74,6 +74,15 @@ class AppColors {
   static const warning = sandGold;
   static const error = Color(0xFFD36B6B);
   static const info = Color(0xFF6EA6C9);
+
+  // Feature accents.
+  static const pollAccent = Color(0xFFC98745);
+  static const pollAccentLight = Color(0xFFD9A760);
+  static const pollSurfaceDark = Color(0xFF2A2119);
+
+  static const chatAccent = Color(0xFF7FAE8A);
+  static const chatAccentLight = Color(0xFF9DBA8F);
+  static const chatSurfaceDark = Color(0xFF12231E);
 }
 
 /// Theme-aware color resolver.
@@ -110,6 +119,16 @@ class CL {
   Color get warning => AppColors.warning;
   Color get error => AppColors.error;
   Color get info => AppColors.info;
+
+  Color get pollAccent => AppColors.pollAccent;
+  Color get pollAccentLight => AppColors.pollAccentLight;
+  Color get pollSurface =>
+      isDark ? AppColors.pollSurfaceDark : AppColors.pollAccentLight.withValues(alpha: 0.18);
+
+  Color get chatAccent => AppColors.chatAccent;
+  Color get chatAccentLight => AppColors.chatAccentLight;
+  Color get chatSurface =>
+      isDark ? AppColors.chatSurfaceDark : AppColors.chatAccentLight.withValues(alpha: 0.16);
 
   Color get successM => success.withValues(alpha: isDark ? 0.15 : 0.13);
   Color get warningM => warning.withValues(alpha: isDark ? 0.16 : 0.14);
