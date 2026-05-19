@@ -51,63 +51,75 @@ class HomeStatsSection extends StatelessWidget {
           unreadCount: chatUnread,
           onTap: onOpenChat,
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: HomeSumCard(
-                label: 'المقاضي الناقصة',
-                value: '$maqadiNeeded ناقص',
-                icon: Icons.shopping_cart_rounded,
-                iconColor: c.warning,
-                iconBg: c.warning.withValues(alpha: 0.12),
-                onTap: onOpenMaqadi,
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          decoration: BoxDecoration(
+            color: c.card.withValues(alpha: 0.40),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: c.border.withValues(alpha: 0.07)),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: HomeSumCard(
+                      label: 'المقاضي الناقصة',
+                      value: '$maqadiNeeded ناقص',
+                      icon: Icons.shopping_cart_rounded,
+                      iconColor: c.warning,
+                      iconBg: c.warning.withValues(alpha: 0.12),
+                      onTap: onOpenMaqadi,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: HomeSumCard(
+                      label: Ar.currentBalance,
+                      value: '$balanceStr ر.س',
+                      icon: Icons.account_balance_wallet_rounded,
+                      iconColor: c.success,
+                      iconBg: c.success.withValues(alpha: 0.12),
+                      valueColor: balanceColor,
+                      onTap: onOpenBalances,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: HomeSumCard(
-                label: Ar.currentBalance,
-                value: '$balanceStr ر.س',
-                icon: Icons.account_balance_wallet_rounded,
-                iconColor: c.success,
-                iconBg: c.success.withValues(alpha: 0.12),
-                valueColor: balanceColor,
-                onTap: onOpenBalances,
+              const SizedBox(height: 11),
+              Row(
+                children: [
+                  Expanded(
+                    child: HomeSumCard(
+                      label: 'التصويتات القائمة',
+                      value: '$activePolls',
+                      icon: Icons.how_to_vote_rounded,
+                      iconColor: const Color(0xFF60A5FA),
+                      iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
+                      onTap: onOpenPolls,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: HomeSumCard(
+                      label: Ar.albumTitle,
+                      value: albumCount > 0 ? '$albumCount صور' : 'لا توجد صور',
+                      icon: Icons.photo_library_rounded,
+                      iconColor: c.error,
+                      iconBg: c.error.withValues(alpha: 0.12),
+                      onTap: onOpenAlbum,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: HomeSumCard(
-                label: 'التصويتات القائمة',
-                value: '$activePolls',
-                icon: Icons.how_to_vote_rounded,
-                iconColor: const Color(0xFF60A5FA),
-                iconBg: const Color(0xFF60A5FA).withValues(alpha: 0.12),
-                onTap: onOpenPolls,
+              const SizedBox(height: 11),
+              _MembersMiniTile(
+                memberCount: memberCount,
+                onTap: onOpenMembers,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: HomeSumCard(
-                label: Ar.albumTitle,
-                value: albumCount > 0 ? '$albumCount صور' : 'لا توجد صور',
-                icon: Icons.photo_library_rounded,
-                iconColor: c.error,
-                iconBg: c.error.withValues(alpha: 0.12),
-                onTap: onOpenAlbum,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        _MembersMiniTile(
-          memberCount: memberCount,
-          onTap: onOpenMembers,
+            ],
+          ),
         ),
       ],
     );
@@ -215,37 +227,45 @@ class HomeChatOverviewCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+        constraints: const BoxConstraints(minHeight: 104),
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
         decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: blue.withValues(alpha: 0.10)),
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              c.card,
+              blue.withValues(alpha: 0.040),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: blue.withValues(alpha: 0.13)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.018),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.022),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: blue.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                color: blue.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(17),
               ),
               child: const Icon(
                 Icons.chat_rounded,
-                size: 20,
+                size: 25,
                 color: blue,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,19 +273,19 @@ class HomeChatOverviewCard extends StatelessWidget {
                   Text(
                     Ar.chat,
                     style: TextStyle(
-                      fontSize: 13.8,
+                      fontSize: 15.4,
                       color: c.t1,
                       fontWeight: FontWeight.w900,
-                      height: 1.15,
+                      height: 1.20,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     hasPreview
                         ? '${(sender ?? '').trim().isEmpty ? '' : '${sender!}: '}${preview!}'
                         : 'لا توجد رسائل جديدة',
                     style: TextStyle(
-                      fontSize: 12.3,
+                      fontSize: 12.4,
                       color: hasPreview ? c.t2 : c.t3,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
@@ -276,15 +296,22 @@ class HomeChatOverviewCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (unreadCount > 0) ...[
-              const SizedBox(width: 10),
+            const SizedBox(width: 12),
+            if (unreadCount > 0)
               Container(
-                constraints: const BoxConstraints(minWidth: 25),
-                height: 25,
+                constraints: const BoxConstraints(minWidth: 28),
+                height: 28,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
                   color: blue,
                   borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: blue.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
@@ -293,11 +320,11 @@ class HomeChatOverviewCard extends StatelessWidget {
                       fontSize: 10.5,
                       fontWeight: FontWeight.w900,
                       color: c.tInverse,
+                      height: 1,
                     ),
                   ),
                 ),
-              ),
-            ],
+              )
           ],
         ),
       ),

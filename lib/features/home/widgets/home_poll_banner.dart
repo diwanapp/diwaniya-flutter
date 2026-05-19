@@ -21,44 +21,61 @@ class HomePollBanner extends StatelessWidget {
     const blue = Color(0xFF60A5FA);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      constraints: const BoxConstraints(minHeight: 104),
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
       decoration: BoxDecoration(
-        color: blue.withValues(alpha: 0.055),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: blue.withValues(alpha: 0.10)),
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            blue.withValues(alpha: 0.115),
+            blue.withValues(alpha: 0.045),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: blue.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: blue.withValues(alpha: 0.060),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: blue.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(13),
+              color: blue.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(17),
             ),
             child: const Icon(
               Icons.how_to_vote_rounded,
-              size: 19,
+              size: 25,
               color: blue,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  showMultiple ? '$activeCount ${Ar.activePollsLabel}' : poll.question,
-                  maxLines: 1,
+                  showMultiple
+                      ? '$activeCount ${Ar.activePollsLabel}'
+                      : poll.question,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13.8,
+                    fontSize: 15.4,
                     fontWeight: FontWeight.w900,
                     color: c.t1,
-                    height: 1.15,
+                    height: 1.25,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 6),
                 Text(
                   showMultiple
                       ? poll.question
@@ -66,27 +83,36 @@ class HomePollBanner extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.7,
+                    fontSize: 12.4,
                     color: c.t2,
                     fontWeight: FontWeight.w600,
+                    height: 1.35,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
-              color: blue.withValues(alpha: 0.86),
-              borderRadius: BorderRadius.circular(12),
+              color: blue,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: blue.withValues(alpha: 0.18),
+                  blurRadius: 11,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Text(
               showMultiple ? Ar.viewPolls : Ar.voteNow,
               style: TextStyle(
-                fontSize: 11.5,
+                fontSize: 11.6,
                 fontWeight: FontWeight.w900,
                 color: c.tInverse,
+                height: 1,
               ),
             ),
           ),

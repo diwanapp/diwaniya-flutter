@@ -30,6 +30,7 @@ import '../welcome/join_request_pending_screen.dart';
 import '../settings/manager_join_requests_screen.dart';
 import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
+import 'widgets/diamond_subscription_card.dart';
 import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
 import 'widgets/home_ad_banner.dart';
@@ -1698,7 +1699,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 20),
                     _HomeVisualGroup(
-                      title: 'نبض الديوانية',
+                      title: '',
                       child: Column(
                         children: [
                           if (_activePoll != null) ...[
@@ -1709,14 +1710,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 activeCount: _activePolls,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                          ],
-                          if (_showUpgradeBanner) ...[
-                            _HomeUpgradeBanner(
-                              onTap: _openUpgradeFromBanner,
-                              onDismiss: _dismissUpgradeBanner,
-                            ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                           ],
                           HomeStatsSection(
                             memberCount: _members.length,
@@ -1739,6 +1733,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             onOpenChat: () => context.push(AppRoutes.chat),
                             onOpenAlbum: _openAlbum,
                           ),
+                          if (_showUpgradeBanner) ...[
+                            const SizedBox(height: 16),
+                            _HomeUpgradeBanner(
+                              onTap: _openUpgradeFromBanner,
+                              onDismiss: _dismissUpgradeBanner,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -1827,19 +1828,20 @@ class _HomeVisualGroup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(start: 2, end: 2, bottom: 11),
-            child: Text(
-              title,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: c.t1,
-                fontSize: 16.2,
-                fontWeight: FontWeight.w900,
-                height: 1.15,
+          if (title.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 2, end: 2, bottom: 11),
+              child: Text(
+                title,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: c.t1,
+                  fontSize: 16.2,
+                  fontWeight: FontWeight.w900,
+                  height: 1.15,
+                ),
               ),
             ),
-          ),
           child,
         ],
       ),
@@ -1931,77 +1933,16 @@ class _HomeUpgradeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cl;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            c.accent.withValues(alpha: 0.16),
-            c.accent.withValues(alpha: 0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.accent.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              color: c.accent,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ارتقِ بإدارة الديوانية',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: c.t1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'صور أكثر، سعة أعلى للأعضاء، ومزايا تنظيمية أوسع عند الحاجة.',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: c.t2,
-                    height: 1.55,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: onTap,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 0),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('الترقية'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: onDismiss,
-            icon: Icon(Icons.close_rounded, size: 18, color: c.t3),
-            tooltip: Ar.notNow,
-          ),
-        ],
-      ),
+    return DiamondSubscriptionCard(
+      title: 'ديوانيتكم تستاهل أكثر',
+      description: 'الباقة الماسية تعطيكم مساحة أكبر ومزايا أكثر',
+      badgeLine1: 'عرض',
+      badgeLine2: 'الإطلاق',
+      offerPercent: '50%',
+      offerText: 'خصم على الاشتراك السنوي',
+      buttonText: 'استفيدوا من العرض',
+      onPressed: onTap,
+      onDismiss: onDismiss,
     );
   }
 }
