@@ -1,41 +1,79 @@
 import 'package:flutter/material.dart';
 
-/// Legacy static constants — kept for reference where direct constants are needed.
+/// Central Diwaniya brand palette.
+///
+/// Direction:
+/// - Majlis Blue: deep, premium, calm blue.
+/// - Sand Taupe: warm Saudi desert-inspired accent.
+/// - Warm Ivory: soft warm off-white text/highlight.
+/// - Soft Taupe: subtle supporting neutral.
+///
+/// Keep legacy names such as [accent], [success], [warning], [error], and [info]
+/// to avoid breaking existing screens while progressively migrating the app.
 class AppColors {
   AppColors._();
 
-  static const backgroundDark = Color(0xFF0F1117);
-  static const backgroundLight = Color(0xFFF5F6F8);
+  // ---------------------------------------------------------------------------
+  // Brand primitives
+  // ---------------------------------------------------------------------------
+  static const majlisNight = Color(0xFF0B111C);
+  static const majlisBlueDark = Color(0xFF0B1724);
+  static const majlisBlue = Color(0xFF10263A);
+  static const majlisBlueSoft = Color(0xFF183B55);
 
-  static const surfaceDark = Color(0xFF1A1D27);
-  static const surfaceLight = Colors.white;
+  static const sandTaupe = Color(0xFFB79A72);
+  static const sandTaupeLight = Color(0xFFC8AD83);
+  static const sandGold = Color(0xFFD9B56D);
 
-  static const surfaceElevatedDark = Color(0xFF242836);
-  static const surfaceElevatedLight = Color(0xFFF0F1F3);
+  static const warmIvory = Color(0xFFF5EFE3);
+  static const ivoryMuted = Color(0xFFE8DDCB);
 
-  static const inputDark = Color(0xFF2E3344);
-  static const inputLight = Color(0xFFEEEFF2);
+  static const softTaupe = Color(0xFF8C8173);
+  static const softTaupeLight = Color(0xFFB8AFA2);
 
-  static const hoverDark = Color(0xFF363B4D);
-  static const hoverLight = Color(0xFFE8E9EC);
+  // ---------------------------------------------------------------------------
+  // Theme surfaces
+  // ---------------------------------------------------------------------------
+  static const backgroundDark = majlisNight;
+  static const backgroundLight = Color(0xFFF5EFE3);
 
-  static const textPrimaryDark = Color(0xFFF2F2F7);
-  static const textPrimaryLight = Color(0xFF111827);
+  static const surfaceDark = Color(0xFF101722);
+  static const surfaceLight = Color(0xFFFFFBF4);
 
-  static const textSecondaryDark = Color(0xFF9CA3AF);
-  static const textSecondaryLight = Color(0xFF6B7280);
+  static const surfaceElevatedDark = Color(0xFF142133);
+  static const surfaceElevatedLight = Color(0xFFF0E7D8);
 
-  static const textTertiaryDark = Color(0xFF6B7280);
-  static const textTertiaryLight = Color(0xFF9CA3AF);
+  static const inputDark = Color(0xFF17263A);
+  static const inputLight = Color(0xFFECE2D3);
 
-  static const textInverseDark = Color(0xFF0F1117);
-  static const textInverseLight = Colors.white;
+  static const hoverDark = Color(0xFF1B3048);
+  static const hoverLight = Color(0xFFE4D7C5);
 
-  static const accent = Color(0xFF2DD4A8);
-  static const success = Color(0xFF34D399);
-  static const warning = Color(0xFFFBBF24);
-  static const error = Color(0xFFF87171);
-  static const info = Color(0xFF60A5FA);
+  // ---------------------------------------------------------------------------
+  // Text
+  // ---------------------------------------------------------------------------
+  static const textPrimaryDark = warmIvory;
+  static const textPrimaryLight = Color(0xFF10263A);
+
+  static const textSecondaryDark = Color(0xFFB8AFA2);
+  static const textSecondaryLight = Color(0xFF5E554B);
+
+  static const textTertiaryDark = Color(0xFF8C8173);
+  static const textTertiaryLight = Color(0xFF8C8173);
+
+  static const textInverseDark = Color(0xFF0B1724);
+  static const textInverseLight = warmIvory;
+
+  // ---------------------------------------------------------------------------
+  // Semantic / interactive colors
+  // ---------------------------------------------------------------------------
+  static const accent = sandTaupeLight;
+
+  // Muted functional colors aligned with the new brand.
+  static const success = Color(0xFF7FAE8A);
+  static const warning = sandGold;
+  static const error = Color(0xFFD36B6B);
+  static const info = Color(0xFF6EA6C9);
 }
 
 /// Theme-aware color resolver.
@@ -64,33 +102,33 @@ class CL {
       isDark ? AppColors.textInverseDark : AppColors.textInverseLight;
 
   Color get accent => AppColors.accent;
-  Color get accentMuted => AppColors.accent.withValues(alpha: 0.10);
+  Color get accentMuted => AppColors.accent.withValues(alpha: isDark ? 0.12 : 0.16);
   Color get accentSurface =>
-      AppColors.accent.withValues(alpha: isDark ? 0.07 : 0.05);
+      AppColors.accent.withValues(alpha: isDark ? 0.075 : 0.13);
 
   Color get success => AppColors.success;
   Color get warning => AppColors.warning;
   Color get error => AppColors.error;
   Color get info => AppColors.info;
 
-  Color get successM => success.withValues(alpha: isDark ? 0.15 : 0.10);
-  Color get warningM => warning.withValues(alpha: isDark ? 0.15 : 0.10);
-  Color get errorM => error.withValues(alpha: isDark ? 0.15 : 0.10);
-  Color get infoM => info.withValues(alpha: isDark ? 0.15 : 0.10);
+  Color get successM => success.withValues(alpha: isDark ? 0.15 : 0.13);
+  Color get warningM => warning.withValues(alpha: isDark ? 0.16 : 0.14);
+  Color get errorM => error.withValues(alpha: isDark ? 0.15 : 0.12);
+  Color get infoM => info.withValues(alpha: isDark ? 0.14 : 0.11);
 
   Color get divider => isDark
-      ? Colors.white.withValues(alpha: 0.08)
-      : Colors.black.withValues(alpha: 0.08);
+      ? AppColors.warmIvory.withValues(alpha: 0.075)
+      : AppColors.majlisBlue.withValues(alpha: 0.10);
 
   Color get border => isDark
-      ? Colors.white.withValues(alpha: 0.03)
-      : Colors.black.withValues(alpha: 0.04);
+      ? AppColors.warmIvory.withValues(alpha: 0.055)
+      : AppColors.majlisBlue.withValues(alpha: 0.075);
 
-  Color get navBg => isDark ? AppColors.surfaceDark : Colors.white;
+  Color get navBg => isDark ? AppColors.surfaceDark : AppColors.surfaceLight;
 
   Color get shadow => isDark
       ? Colors.transparent
-      : Colors.black.withValues(alpha: 0.04);
+      : AppColors.majlisBlue.withValues(alpha: 0.06);
 }
 
 extension ThemeColorsX on BuildContext {
