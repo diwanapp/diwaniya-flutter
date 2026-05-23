@@ -90,9 +90,14 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
 
   List<DiwaniyaCalendarEvent> get _upcomingEvents {
     final now = DateTime.now();
-    return widget.events
-        .where((e) => !e.isCancelled && e.startsAt.toLocal().isAfter(now.subtract(const Duration(minutes: 1))))
-        .toList()
+    final horizon = now.add(const Duration(days: 370));
+
+    return widget.events.where((e) {
+      final local = e.startsAt.toLocal();
+      return !e.isCancelled &&
+          !local.isBefore(now.subtract(const Duration(minutes: 1))) &&
+          !local.isAfter(horizon);
+    }).toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
   }
 
@@ -122,34 +127,44 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     return eventText;
   }
 
-  String _headlineText() {
+  DiwaniyaCalendarEvent? get _nearestUpcomingEvent {
     final upcoming = _upcomingEvents;
-    if (upcoming.isEmpty) return 'لا توجد مناسبات قريبة';
+    if (upcoming.isEmpty) return null;
+    return upcoming.first;
+  }
 
-    final first = upcoming.first.startsAt.toLocal();
+  String _nearestEventTitle() {
+    final event = _nearestUpcomingEvent;
+    if (event == null) return 'لا توجد مناسبات قريبة';
+
+    final title = event.title.trim();
+    return title.isEmpty ? 'مناسبة قادمة' : title;
+  }
+
+  String _nearestEventMeta() {
+    final event = _nearestUpcomingEvent;
+    if (event == null) return '';
+
+    final startsAt = event.startsAt.toLocal();
+    return '${_eventDateBrief(startsAt)} · ${_timeText(startsAt)}';
+  }
+
+  String _headlineText() {
+    return _nearestEventTitle();
+  }
+
+  String _eventDateBrief(DateTime dt) {
+    final day = _startOfDay(dt);
     final today = _startOfDay(DateTime.now());
-    final firstDay = _startOfDay(first);
-    final time = _timeText(first);
+    final tomorrow = today.add(const Duration(days: 1));
 
-    if (firstDay == today) return 'أقرب مناسبة اليوم $time';
+    if (_sameDay(day, today)) return 'اليوم';
+    if (_sameDay(day, tomorrow)) return 'غدًا';
 
-    final count = _weekEventCount();
-    if (count == 1) return 'مناسبة هذا الأسبوع';
-    if (count == 2) return 'مناسبتان هذا الأسبوع';
-    if (count >= 3 && count <= 10) return '$count مناسبات هذا الأسبوع';
-    return 'لا توجد مناسبات قريبة';
+    return '${dt.day} ${_monthName(dt.month)}';
   }
 
-  String _timeText(DateTime dt) {
-    final local = dt.toLocal();
-    final h = local.hour;
-    final m = local.minute.toString().padLeft(2, '0');
-    final suffix = h >= 12 ? 'م' : 'ص';
-    final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-    return '$displayHour:$m $suffix';
-  }
-
-  String _dateTitle(DateTime day) {
+  String _monthName(int month) {
     const months = [
       'يناير',
       'فبراير',
@@ -164,7 +179,22 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
       'نوفمبر',
       'ديسمبر',
     ];
-    return '${day.day} ${months[day.month - 1]}';
+
+    if (month < 1 || month > 12) return month.toString();
+    return months[month - 1];
+  }
+
+  String _timeText(DateTime dt) {
+    final local = dt.toLocal();
+    final h = local.hour;
+    final m = local.minute.toString().padLeft(2, '0');
+    final suffix = h >= 12 ? 'م' : 'ص';
+    final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '$displayHour:$m $suffix';
+  }
+
+  String _dateTitle(DateTime day) {
+    return '${day.day} ${_monthName(day.month)}';
   }
 
   bool _canManage(DiwaniyaCalendarEvent event) {
@@ -245,6 +275,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
           _CalendarTopBar(
             title: _dateTitle(_selectedDay),
             headline: _headlineText(),
+            nearestMeta: _nearestEventMeta(),
             summary: _summaryText(),
             goingCount: goingCount,
             isGoing: isGoing,
@@ -252,7 +283,6 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             onMonth: _openMonthPicker,
             onCreate: _createForSelectedDay,
             onToggleGoing: _toggleSelectedDayAttendance,
-            onShowGoing: () => widget.onShowDayAttendees(_selectedDay),
           ),
           if (showWeekStrip) ...[
             const SizedBox(height: 12),
@@ -290,6 +320,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
 class _CalendarTopBar extends StatelessWidget {
   final String title;
   final String headline;
+  final String nearestMeta;
   final String summary;
   final int goingCount;
   final bool isGoing;
@@ -297,11 +328,11 @@ class _CalendarTopBar extends StatelessWidget {
   final VoidCallback onMonth;
   final VoidCallback onCreate;
   final VoidCallback onToggleGoing;
-  final VoidCallback onShowGoing;
 
   const _CalendarTopBar({
     required this.title,
     required this.headline,
+    required this.nearestMeta,
     required this.summary,
     required this.goingCount,
     required this.isGoing,
@@ -309,107 +340,151 @@ class _CalendarTopBar extends StatelessWidget {
     required this.onMonth,
     required this.onCreate,
     required this.onToggleGoing,
-    required this.onShowGoing,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: onCreate,
-          borderRadius: BorderRadius.circular(15),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            InkWell(
+              onTap: onMonth,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: c.accent.withValues(alpha: 0.075),
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: c.accent.withValues(alpha: 0.13)),
                 ),
-                child: Icon(Icons.calendar_month_rounded, color: c.accent, size: 21),
+                child: Icon(
+                  Icons.calendar_month_rounded,
+                  color: c.accent,
+                  size: 23,
+                ),
               ),
-              PositionedDirectional(
-                top: -4,
-                end: -4,
+            ),
+            PositionedDirectional(
+              top: -6,
+              end: -6,
+              child: GestureDetector(
+                onTap: onCreate,
                 child: Container(
-                  width: 19,
-                  height: 19,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
                     color: c.accent,
                     shape: BoxShape.circle,
                     border: Border.all(color: c.card, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: c.accent.withValues(alpha: 0.18),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.add_rounded, size: 13, color: Colors.white),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    size: 15,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        const SizedBox(width: 11),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 title,
+                textAlign: TextAlign.right,
                 style: TextStyle(
                   color: c.t1,
-                  fontSize: 18.5,
+                  fontSize: 21,
                   fontWeight: FontWeight.w900,
                   height: 1.05,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 12),
               Text(
-                headline,
+                'أقرب مناسبة',
+                textAlign: TextAlign.right,
                 style: TextStyle(
-                  color: c.t3,
-                  fontSize: 12.2,
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
+                  color: c.accent,
+                  fontSize: 12.4,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
                 ),
               ),
               const SizedBox(height: 6),
-              InkWell(
-                onTap: goingCount > 0 ? onShowGoing : null,
-                borderRadius: BorderRadius.circular(999),
-                child: Text(
-                  summary,
-                  style: TextStyle(
-                    color: goingCount > 0 ? c.accent : c.t2,
-                    fontSize: 12.2,
-                    fontWeight: FontWeight.w800,
+              Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Flexible(
+                    flex: 4,
+                    child: Text(
+                      headline,
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: c.t1,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
                   ),
-                ),
+                  if (nearestMeta.trim().isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.t3.withValues(alpha: 0.45),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      flex: 5,
+                      child: Text(
+                        nearestMeta,
+                        textAlign: TextAlign.right,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: c.t3,
+                          fontSize: 12.2,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
-        Column(
-          children: [
-            _MiniAction(
-              label: isGoing ? 'ما أقدر' : 'جاي اليوم',
-              icon: isGoing ? Icons.close_rounded : Icons.how_to_reg_rounded,
-              onTap: onToggleGoing,
-              filled: false,
-              danger: isGoing,
-              compact: false,
-            ),
-            const SizedBox(height: 8),
-            _MiniAction(
-              label: 'الشهر',
-              icon: Icons.calendar_month_rounded,
-              onTap: onMonth,
-              filled: false,
-            ),
-          ],
+        const SizedBox(width: 10),
+        _MiniAction(
+          label: isGoing ? 'ما أقدر' : 'جاي اليوم',
+          icon: isGoing ? Icons.close_rounded : Icons.how_to_reg_rounded,
+          onTap: onToggleGoing,
+          filled: false,
+          danger: isGoing,
+          compact: false,
         ),
       ],
     );
@@ -1468,7 +1543,7 @@ class _HomeCalendarEventSheetState extends State<HomeCalendarEventSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    const suggestions = ['عشاء', 'مباراة', 'قهوة', 'سهرة', 'اجتماع', 'تحدي'];
+    const suggestions = ['عشاء', 'مباراة', 'قهوة', 'حفلة'];
 
     return SafeArea(
       top: false,
@@ -1490,18 +1565,37 @@ class _HomeCalendarEventSheetState extends State<HomeCalendarEventSheet> {
                   style: TextStyle(color: c.t1, fontSize: 18, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
+                GridView.count(
+                  crossAxisCount: 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.85,
                   children: suggestions
                       .map(
-                        (s) => ActionChip(
-                          label: Text(s),
-                          onPressed: () => _applySuggestion(s),
-                          backgroundColor: c.accent.withValues(alpha: 0.10),
-                          labelStyle: TextStyle(color: c.accent, fontWeight: FontWeight.w900),
-                          side: BorderSide(color: c.accent.withValues(alpha: 0.18)),
+                        (item) => InkWell(
+                          onTap: () => _applySuggestion(item),
+                          borderRadius: BorderRadius.circular(15),
+                          child: Container(
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: c.accent.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(
+                                color: c.accent.withValues(alpha: 0.18),
+                              ),
+                            ),
+                            child: Text(
+                              item,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: c.accent,
+                                fontSize: 13.2,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
                         ),
                       )
                       .toList(),
