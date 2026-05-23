@@ -209,10 +209,10 @@ class CalendarService {
 
     final now = DateTime.now();
     final from = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 1));
-    final to = from.add(const Duration(days: 45));
+    final to = from.add(const Duration(days: 400));
 
     final results = await Future.wait<dynamic>([
-      ApiClient.get(_eventsPath(did, from: from, to: to, limit: 50)),
+      ApiClient.get(_eventsPath(did, from: from, to: to, limit: 300)),
       ApiClient.get(_dayAttendancePath(did, from: from, to: to)),
     ]);
 
@@ -240,6 +240,32 @@ class CalendarService {
     if (bumpVersion) dataVersion.value++;
   }
 
+
+  static void _upsertEventLocal(
+    String diwaniyaId,
+    DiwaniyaCalendarEvent event,
+  ) {
+    final did = diwaniyaId.trim();
+    if (did.isEmpty || event.id.trim().isEmpty) return;
+
+    final list = diwaniyaCalendarEvents.putIfAbsent(
+      did,
+      () => <DiwaniyaCalendarEvent>[],
+    );
+
+    list.removeWhere((e) => e.id == event.id);
+    list.add(event);
+    list.sort((a, b) => a.startsAt.compareTo(b.startsAt));
+  }
+
+  static void _removeEventLocal(String diwaniyaId, String eventId) {
+    final did = diwaniyaId.trim();
+    final eid = eventId.trim();
+    if (did.isEmpty || eid.isEmpty) return;
+
+    diwaniyaCalendarEvents[did]?.removeWhere((e) => e.id == eid);
+  }
+
   static Future<DiwaniyaCalendarEvent> createEvent(
     String diwaniyaId, {
     required String title,
@@ -249,7 +275,7 @@ class CalendarService {
     String? location,
   }) async {
     final raw = await ApiClient.post(
-      _eventsPath(diwaniyaId, limit: 50).split('?').first,
+      _eventsPath(diwaniyaId, limit: 300).split('?').first,
       body: {
         'title': title.trim(),
         'description': description?.trim(),
