@@ -241,30 +241,9 @@ class CalendarService {
   }
 
 
-  static void _upsertEventLocal(
-    String diwaniyaId,
-    DiwaniyaCalendarEvent event,
-  ) {
-    final did = diwaniyaId.trim();
-    if (did.isEmpty || event.id.trim().isEmpty) return;
 
-    final list = diwaniyaCalendarEvents.putIfAbsent(
-      did,
-      () => <DiwaniyaCalendarEvent>[],
-    );
 
-    list.removeWhere((e) => e.id == event.id);
-    list.add(event);
-    list.sort((a, b) => a.startsAt.compareTo(b.startsAt));
-  }
 
-  static void _removeEventLocal(String diwaniyaId, String eventId) {
-    final did = diwaniyaId.trim();
-    final eid = eventId.trim();
-    if (did.isEmpty || eid.isEmpty) return;
-
-    diwaniyaCalendarEvents[did]?.removeWhere((e) => e.id == eid);
-  }
 
   static Future<DiwaniyaCalendarEvent> createEvent(
     String diwaniyaId, {
