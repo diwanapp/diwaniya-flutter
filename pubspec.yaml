@@ -8,8 +8,6 @@ environment:
 
 dependencies:
   flutter:
-  assets:
-    - assets/brand/
     sdk: flutter
   flutter_localizations:
     sdk: flutter
@@ -36,7 +34,6 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 flutter:
-  uses-material-design: true
   assets:
-    - assets/ads/
-    - assets/legal/
+    - assets/brand/
+  uses-material-design: true
