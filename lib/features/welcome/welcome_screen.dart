@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../l10n/ar.dart';
+import '../../shared/widgets/diwaniya_brand_mark.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -89,30 +91,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       children: [
                         Opacity(
                           opacity: 1 - _controller.value * 0.35,
-                          child: Container(
-                            width: 104,
-                            height: 104,
-                            decoration: BoxDecoration(
-                              color: c.accentMuted,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: c.accent.withValues(alpha: 0.22),
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.groups_rounded,
-                              size: 50,
-                              color: c.accent,
-                            ),
-                          ),
+                          child: const DiwaniyaBrandMark(size: 188),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
                         Text(
                           Ar.appName,
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
+                          style: GoogleFonts.notoKufiArabic(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
                             color: c.t1,
+                            height: 1.25,
                           ),
                         ),
                         const SizedBox(height: 10),

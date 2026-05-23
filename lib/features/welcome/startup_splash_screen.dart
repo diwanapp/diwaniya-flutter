@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../core/services/auth_service.dart';
+import '../../shared/widgets/diwaniya_brand_mark.dart';
 
 /// Startup splash shown on every cold boot for a fixed duration before
 /// routing to the correct destination.
@@ -72,27 +74,16 @@ class _StartupSplashScreenState extends State<StartupSplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: c.accentMuted,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Icon(
-                    Icons.groups_2_rounded,
-                    size: 48,
-                    color: c.accent,
-                  ),
-                ),
-                const SizedBox(height: 22),
+                const DiwaniyaBrandMark(size: 188),
+                const SizedBox(height: 14),
                 Text(
                   'ديوانية',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
+                  style: GoogleFonts.notoKufiArabic(
+                    fontSize: 31,
+                    fontWeight: FontWeight.w800,
                     color: c.t1,
-                    letterSpacing: 0.5,
+                    letterSpacing: 0.2,
+                    height: 1.25,
                   ),
                 ),
               ],
