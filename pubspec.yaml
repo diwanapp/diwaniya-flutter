@@ -8,6 +8,8 @@ environment:
 
 dependencies:
   flutter:
+  assets:
+    - assets/brand/
     sdk: flutter
   flutter_localizations:
     sdk: flutter
