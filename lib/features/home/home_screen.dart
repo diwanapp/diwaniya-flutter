@@ -505,6 +505,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   DiwaniyaPoll? get _activePoll => _polls.where((p) => p.isActive).firstOrNull;
   int get _activePolls => _polls.where((p) => p.isActive).length;
+
+  DiwaniyaPoll? get _actionableActivePoll => _polls
+      .where((p) =>
+          p.isActive && p.votedMembers[UserService.currentName] == null)
+      .firstOrNull;
+
+  int get _actionableActivePolls => _polls
+      .where((p) =>
+          p.isActive && p.votedMembers[UserService.currentName] == null)
+      .length;
   int get _maqadiNeeded =>
       _maqadiItems.where((i) => i.status == 'needed').length;
   int get _unreadNotifs =>
@@ -1620,6 +1630,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final diw = _diw!;
     final bal = _myBalance;
     final balStr = bal >= 0 ? '+${bal.toInt()}' : '${bal.toInt()}';
+    final showHomeAds = false;
+    final showHomeUpgradeCard = false;
 
     if (_showUpgradeBanner) {
       final bannerKey = 'home:$_diwaniyaId:${EntitlementService.isPremium}';
@@ -1693,64 +1705,71 @@ class _HomeScreenState extends State<HomeScreen> {
                       onEdit: (event) => _openCreateCalendarEvent(initial: event),
                       onDelete: _deleteCalendarEvent,
                     ),
-                    const SizedBox(height: 18),
-                    const _HomeVisualBreathingSpace(
-                      child: HomeAdBanner(),
-                    ),
-                    const SizedBox(height: 20),
-                    _HomeVisualGroup(
-                      title: '',
-                      child: Column(
-                        children: [
-                          if (_activePoll != null) ...[
-                            GestureDetector(
-                              onTap: _openPolls,
-                              child: HomePollBanner(
-                                poll: _activePoll!,
-                                activeCount: _activePolls,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          HomeStatsSection(
-                            memberCount: _members.length,
-                            balanceStr: balStr,
-                            balanceColor: bal >= 0 ? c.success : c.error,
-                            activePolls: _activePolls,
-                            maqadiNeeded: _maqadiNeeded,
-                            chatPreview: _chatPreview,
-                            chatSender: _chatSender,
-                            chatUnread: _chatUnread,
-                            albumCount: _albumCount,
-                            onOpenMembers: _openMembers,
-                            onOpenBalances: _openBalances,
-                            onOpenPolls: _openPolls,
-                            onOpenMaqadi: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      const MaqadiScreen(initialFilter: 'needed')),
-                            ),
-                            onOpenChat: () => context.push(AppRoutes.chat),
-                            onOpenAlbum: _openAlbum,
-                          ),
-                          if (_showUpgradeBanner) ...[
-                            const SizedBox(height: 16),
-                            _HomeUpgradeBanner(
-                              onTap: _openUpgradeFromBanner,
-                              onDismiss: _dismissUpgradeBanner,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 16),
                     HomeQuickActionsSection(
                       onAddExpense: () => context.go(AppRoutes.expenses),
                       onCreatePoll: _openCreatePoll,
                       onAddMaqadi: () => context.go(AppRoutes.maqadi),
                       onCapturePhoto: _capturePhotoQuick,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 18),
+                    if (showHomeAds) ...[
+                      const _HomeVisualBreathingSpace(
+                        child: HomeAdBanner(),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                    if (_actionableActivePoll != null) ...[
+                      GestureDetector(
+                        onTap: _openPolls,
+                        child: HomePollBanner(
+                          poll: _actionableActivePoll!,
+                          activeCount: _actionableActivePolls,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    if (showHomeUpgradeCard && _showUpgradeBanner) ...[
+                      _HomeUpgradeBanner(
+                        onTap: _openUpgradeFromBanner,
+                        onDismiss: _dismissUpgradeBanner,
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    HomeChatOverviewCard(
+                      preview: _chatPreview ?? '',
+                      sender: _chatSender ?? '',
+                      unreadCount: _chatUnread,
+                      onTap: () => context.push(AppRoutes.chat),
+                    ),
+                    const SizedBox(height: 16),
+                    _HomeVisualGroup(
+                      title: '',
+                      compact: true,
+                      child: HomeStatsSection(
+                        showChatOverview: false,
+                        memberCount: _members.length,
+                        balanceStr: balStr,
+                        balanceColor: bal >= 0 ? c.success : c.error,
+                        activePolls: _activePolls,
+                        maqadiNeeded: _maqadiNeeded,
+                        chatPreview: _chatPreview ?? '',
+                        chatSender: _chatSender ?? '',
+                        chatUnread: _chatUnread,
+                        albumCount: _albumCount,
+                        onOpenMembers: _openMembers,
+                        onOpenBalances: _openBalances,
+                        onOpenPolls: _openPolls,
+                        onOpenMaqadi: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const MaqadiScreen(initialFilter: 'needed')),
+                        ),
+                        onOpenChat: () => context.push(AppRoutes.chat),
+                        onOpenAlbum: _openAlbum,
+                      ),
+                    ),
+                    const SizedBox(height: 26),
                     HomeActivitySection(
                         activities: _activities
                             .where((a) => !a.type.startsWith('chat'))

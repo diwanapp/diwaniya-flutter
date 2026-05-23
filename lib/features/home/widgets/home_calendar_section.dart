@@ -223,6 +223,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     final selectedEvents = _eventsForDay(_selectedDay);
     final goingCount = _totalGoingForDay(_selectedDay);
     final isGoing = _isCurrentUserGoing(_selectedDay);
+    final showWeekStrip = false;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
@@ -253,16 +254,19 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             onToggleGoing: _toggleSelectedDayAttendance,
             onShowGoing: () => widget.onShowDayAttendees(_selectedDay),
           ),
-          const SizedBox(height: 12),
-          _WeekStrip(
-            days: _weekDays,
-            selectedDay: _selectedDay,
-            eventsForDay: _eventsForDay,
-            attendanceCountForDay: _totalGoingForDay,
-            isCurrentUserGoing: _isCurrentUserGoing,
-            onSelect: _select,
-          ),
-          const SizedBox(height: 12),
+          if (showWeekStrip) ...[
+            const SizedBox(height: 12),
+            _WeekStrip(
+              days: _weekDays,
+              selectedDay: _selectedDay,
+              eventsForDay: _eventsForDay,
+              attendanceCountForDay: _totalGoingForDay,
+              isCurrentUserGoing: _isCurrentUserGoing,
+              onSelect: _select,
+            ),
+            const SizedBox(height: 12),
+          ] else
+            const SizedBox(height: 10),
           _SelectedDayPanel(
             selectedDay: _selectedDay,
             events: selectedEvents,
