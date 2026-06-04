@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +10,6 @@ import '../../core/api/api_config.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/api/auth_api.dart';
 import '../../core/services/auth_service.dart';
-import '../../l10n/ar.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -22,6 +22,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _first = TextEditingController();
   final _last = TextEditingController();
   final _phone = TextEditingController();
+
   bool _loading = false;
 
   bool get _valid => _normalizedPhone(_phone.text).length >= 9;
@@ -34,19 +35,18 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  String _normalizedPhone(String value) => value.replaceAll(RegExp(r'[^0-9]'), '');
+  String _normalizedPhone(String value) =>
+      value.replaceAll(RegExp(r'[^0-9]'), '');
 
-  // UI-level hard timeout for the OTP request. The API client has its
-  // own connect/read timeouts, but this backstop guarantees the button
-  // can never hang indefinitely regardless of transport-level state.
   static const _otpRequestTimeout = Duration(seconds: 15);
 
-  bool get _devFallbackEnabled =>
-      kDebugMode && ApiConfig.devAuthFallback;
+  bool get _devFallbackEnabled => kDebugMode && ApiConfig.devAuthFallback;
 
   Future<void> _submit() async {
     if (!_valid || _loading) return;
+
     setState(() => _loading = true);
+
     final phone = _normalizedPhone(_phone.text);
     final firstName = _first.text.trim();
 
@@ -56,24 +56,12 @@ class _AuthScreenState extends State<AuthScreen> {
         lastName: _last.text,
         phone: phone,
       ).timeout(_otpRequestTimeout);
+
       if (!mounted) return;
 
-      // New-user gate: if the backend flagged this phone as new and
-      // the user didn't type a first name, block navigation to OTP
-      // and show the message. The OTP was already sent — if the user
-      // adds a name and retries, a fresh OTP will be requested.
-      //
-      // When isNewUser is null (backend didn't signal), we fall open
-      // and allow the user to proceed, preserving prior behavior.
       if (result.isNewUser == true && firstName.isEmpty) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'هذا الرقم غير مسجل بعد. يرجى إدخال الاسم أولًا لإكمال التسجيل.',
-            ),
-          ),
-        );
+        _showSnack('هذا الرقم غير مسجل. أدخل الاسم الأول لإكمال التسجيل.');
         return;
       }
 
@@ -81,83 +69,53 @@ class _AuthScreenState extends State<AuthScreen> {
       context.push('/otp');
     } on TimeoutException {
       if (!mounted) return;
-      // Dev fallback: backend unreachable, degrade to mock OTP path.
+
       if (_devFallbackEnabled) {
         await _runDevFallback(phone);
         return;
       }
+
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'تعذر الاتصال بخدمة التحقق. تأكد من تشغيل الخادم أو تحقق من الاتصال ثم حاول مرة أخرى.',
-          ),
-        ),
-      );
+      _showSnack('تعذر الاتصال بخدمة التحقق. تأكد من الاتصال وحاول مرة أخرى.');
     } on ApiException catch (e) {
       if (!mounted) return;
-      // Dev fallback: on any API error while dev mode is enabled,
-      // skip the real backend path entirely so the developer can
-      // keep iterating on downstream screens.
+
       if (_devFallbackEnabled) {
         await _runDevFallback(phone);
         return;
       }
+
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.isNetwork
-                ? 'تحقق من الاتصال بالإنترنت وحاول مرة أخرى'
-                : (e.message.isNotEmpty
-                    ? e.message
-                    : 'تعذّر إرسال رمز التحقق'),
-          ),
-        ),
+      _showSnack(
+        e.isNetwork
+            ? 'تعذر الاتصال بالإنترنت. حاول مرة أخرى.'
+            : (e.message.isNotEmpty
+                ? e.message
+                : 'تعذر إرسال رمز التحقق. حاول مرة أخرى.'),
       );
     } catch (_) {
-      // Final safety net: any unexpected error must not leave the
-      // button in loading state.
       if (!mounted) return;
+
       if (_devFallbackEnabled) {
         await _runDevFallback(phone);
         return;
       }
+
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('حدث خطأ غير متوقع، حاول مرة أخرى.'),
-        ),
-      );
+      _showSnack('حدث خطأ غير متوقع. حاول مرة أخرى.');
     }
   }
 
-  /// Dev-only fallback path. Saves the local profile draft through
-  /// the dev-fallback method (which sets otpRequestedInSession) and
-  /// navigates to the OTP screen. A subtle snackbar makes the mode
-  /// impossible to miss. Only called when `_devFallbackEnabled` is
-  /// true, which in turn requires both `kDebugMode` AND the build-time
-  /// `--dart-define=DIWANIYA_DEV_AUTH_FALLBACK=true`.
-  ///
-  /// Dev mode has no backend to distinguish existing vs new users, so
-  /// every dev-mode submission is treated as potentially new: first
-  /// name is REQUIRED before we navigate to OTP. This mirrors the
-  /// real-backend new-user gate and prevents accounts from being
-  /// created with an empty identity in dev builds.
   Future<void> _runDevFallback(String phone) async {
     final firstName = _first.text.trim();
+
     if (firstName.isEmpty) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'هذا الرقم غير مسجل بعد. يرجى إدخال الاسم أولًا لإكمال التسجيل.',
-          ),
-        ),
-      );
+      _showSnack('هذا الرقم غير مسجل. أدخل الاسم الأول لإكمال التسجيل.');
       return;
     }
+
     try {
       await AuthService.requestOtpViaDevFallback(
         firstName: _first.text,
@@ -165,151 +123,500 @@ class _AuthScreenState extends State<AuthScreen> {
         phone: phone,
       );
     } catch (_) {
-      // Dev fallback should never fail, but be defensive.
       if (!mounted) return;
       setState(() => _loading = false);
       return;
     }
+
     if (!mounted) return;
     setState(() => _loading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'الوضع التطويري — تم تخطي خدمة OTP (رمز التحقق: 000000)',
-        ),
-      ),
-    );
+    _showSnack('وضع التطوير مفعّل — رمز التحقق: 000000');
     context.push('/otp');
   }
 
-  @override
-  Widget build(BuildContext context) {
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, textAlign: TextAlign.right)),
+    );
+  }
+
+  void _openTerms() {
     final c = context.cl;
-    return Scaffold(
-      backgroundColor: c.bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
-          children: [
-            const SizedBox(height: 8),
-            Text(Ar.authTitle,
-                style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900, color: c.t1)),
-            const SizedBox(height: 10),
-            Text(Ar.authSubtitle,
-                style: TextStyle(fontSize: 15, height: 1.7, color: c.t2)),
-            const SizedBox(height: 24),
-            _Field(
-              controller: _first,
-              label: Ar.firstName,
-              hint: Ar.firstNameHint,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                'مطلوب للمستخدمين الجدد فقط. إذا سبق وسجلت برقمك، اتركه فارغًا وسجّل دخول مباشرة.',
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.6,
-                  color: c.t3,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _Field(
-              controller: _last,
-              label: Ar.lastNameOptional,
-              hint: Ar.lastNameHint,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 14),
-            _Field(
-              controller: _phone,
-              label: Ar.phoneNumber,
-              hint: Ar.phoneHint,
-              keyboardType: TextInputType.phone,
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SafeArea(
+            child: Container(
+              margin: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: c.border),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: const Color(0xFFC8AD83).withValues(alpha: 0.16),
+                ),
               ),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: c.accentMuted,
-                      borderRadius: BorderRadius.circular(12),
+                  Text(
+                    'شروط استخدام ديوانية',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: c.t1,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      height: 1.2,
                     ),
-                    child: Icon(Icons.lock_outline_rounded, color: c.accent),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      Ar.otpExplainer,
-                      style: TextStyle(fontSize: 13.5, height: 1.7, color: c.t2),
+                  const SizedBox(height: 12),
+                  Text(
+                    'باستخدامك للتطبيق، فإنك توافق على استخدام ديوانية لإدارة الديوانيات، المصاريف، المقاضي، التصويتات، الدردشة، والألبوم وفق الضوابط المعتمدة داخل التطبيق. سيتم عرض النسخة القانونية الكاملة قبل الإطلاق الرسمي.',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: c.t2,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.65,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFC8AD83),
+                        foregroundColor: c.bg,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: const Text(
+                        'فهمت',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _valid ? _submit : null,
-                child: Text(_loading ? Ar.loading : Ar.sendOtp),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: c.bg,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+            children: [
+              const SizedBox(height: 18),
+              const _AuthBrandHeader(),
+              const SizedBox(height: 34),
+              Text(
+                'إنشاء حساب أو الدخول',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: c.t1,
+                  fontSize: 31,
+                  fontWeight: FontWeight.w900,
+                  height: 1.12,
+                  letterSpacing: -0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              Ar.authFooter,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: c.t3),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                'أدخل رقم جوالك، وراح نرسل لك رمز تحقق آمن.',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: c.t2,
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.65,
+                ),
+              ),
+              const SizedBox(height: 26),
+              _AuthCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PremiumField(
+                      controller: _phone,
+                      label: 'رقم الجوال',
+                      keyboardType: TextInputType.phone,
+                      icon: Icons.phone_iphone_rounded,
+                      autofocus: true,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 18),
+                    _FirstTimeSection(
+                      first: _first,
+                      last: _last,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              _PrimaryAuthButton(
+                enabled: _valid && !_loading,
+                loading: _loading,
+                onTap: _submit,
+              ),
+              const SizedBox(height: 14),
+              RichText(
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
+                text: TextSpan(
+                  style: TextStyle(
+                    color: c.t3,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.55,
+                  ),
+                  children: [
+                    const TextSpan(text: 'بمتابعتك، أنت توافق على '),
+                    TextSpan(
+                      text: 'شروط استخدام ديوانية',
+                      style: const TextStyle(
+                        color: Color(0xFFC8AD83),
+                        fontWeight: FontWeight.w900,
+                        decoration: TextDecoration.underline,
+                        decorationThickness: 1.4,
+                      ),
+                      recognizer: TapGestureRecognizer()..onTap = _openTerms,
+                    ),
+                    const TextSpan(text: '.'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final String hint;
-  final TextInputType? keyboardType;
+class _AuthBrandHeader extends StatelessWidget {
+  const _AuthBrandHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Center(
+      child: SizedBox(
+        width: 148,
+        height: 148,
+        child: Image.asset(
+          'assets/brand/logo_mark_splash_1024.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => Image.asset(
+            'assets/brand/2-1024_Transparent.png',
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => Icon(
+              Icons.groups_rounded,
+              color: c.accent,
+              size: 54,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthCard extends StatelessWidget {
+  final Widget child;
+
+  const _AuthCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 17),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            const Color(0xFF183B55).withValues(alpha: 0.46),
+            c.card.withValues(alpha: 0.72),
+            const Color(0xFF10263A).withValues(alpha: 0.40),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: const Color(0xFFC8AD83).withValues(alpha: 0.13),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 28,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _FirstTimeSection extends StatelessWidget {
+  final TextEditingController first;
+  final TextEditingController last;
   final ValueChanged<String>? onChanged;
-  const _Field({
-    required this.controller,
-    required this.label,
-    required this.hint,
-    this.keyboardType,
+
+  const _FirstTimeSection({
+    required this.first,
+    required this.last,
     this.onChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: const Color(0xFFC8AD83).withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC8AD83).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.person_add_alt_1_rounded,
+                  color: const Color(0xFFC8AD83),
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'غير مسجل سابقًا؟',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: c.t1,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'أدخل اسمك لإكمال إنشاء الحساب.',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: c.t3,
+              fontSize: 12.8,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _PremiumField(
+            controller: first,
+            label: 'الاسم الأول',
+            icon: Icons.badge_rounded,
+            onChanged: onChanged,
+          ),
+          const SizedBox(height: 12),
+          _PremiumField(
+            controller: last,
+            label: 'الاسم الأخير',
+            icon: Icons.person_outline_rounded,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final ValueChanged<String>? onChanged;
+  final bool autofocus;
+
+  const _PremiumField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType,
+    this.onChanged,
+    this.autofocus = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: c.t2)),
+        Text(
+          label,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: c.t2,
+            fontSize: 13.2,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          autofocus: autofocus,
           onChanged: onChanged,
           keyboardType: keyboardType,
-          decoration: InputDecoration(hintText: hint),
+          textAlign: TextAlign.right,
+          textDirection: TextDirection.rtl,
+          style: TextStyle(
+            color: c.t1,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+          decoration: InputDecoration(
+            hintText: '',
+            prefixIcon: Icon(icon, color: const Color(0xFFC8AD83), size: 21),
+            filled: true,
+            fillColor: const Color(0xFF183B55).withValues(alpha: 0.46),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(19),
+              borderSide: BorderSide(
+                color: Colors.white.withValues(alpha: 0.045),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(19),
+              borderSide: const BorderSide(
+                color: Color(0xFFC8AD83),
+                width: 1.4,
+              ),
+            ),
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _PrimaryAuthButton extends StatelessWidget {
+  final bool enabled;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _PrimaryAuthButton({
+    required this.enabled,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.48,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(23),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(23),
+          onTap: enabled ? onTap : null,
+          child: Ink(
+            height: 58,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+                colors: [
+                  Color(0xFFF5EFE3),
+                  Color(0xFFC8AD83),
+                  Color(0xFFB79A72),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(23),
+              boxShadow: enabled
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFFC8AD83).withValues(alpha: 0.22),
+                        blurRadius: 24,
+                        offset: const Offset(0, 12),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Center(
+              child: loading
+                  ? SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          c.bg,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      'إرسال رمز التحقق',
+                      style: TextStyle(
+                        color: c.bg,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

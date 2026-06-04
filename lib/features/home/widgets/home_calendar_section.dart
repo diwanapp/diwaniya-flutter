@@ -9,21 +9,20 @@ class HomeCalendarSection extends StatefulWidget {
   final List<DiwaniyaCalendarEvent> events;
   final List<DiwaniyaCalendarDayAttendance> dayAttendance;
   final bool isManager;
-  final void Function(DateTime day) onCreate;
   final void Function(DateTime day, bool attending) onDayAttendanceToggle;
   final void Function(DateTime day) onShowDayAttendees;
   final void Function(DiwaniyaCalendarEvent event) onAttendToggle;
   final void Function(DiwaniyaCalendarEvent event) onEdit;
   final void Function(DiwaniyaCalendarEvent event) onDelete;
-
+  final ValueChanged<DateTime> onCreate;
   const HomeCalendarSection({
     super.key,
     required this.events,
     required this.dayAttendance,
     required this.isManager,
-    required this.onCreate,
     required this.onDayAttendanceToggle,
     required this.onShowDayAttendees,
+    required this.onCreate,
     required this.onAttendToggle,
     required this.onEdit,
     required this.onDelete,
@@ -242,6 +241,10 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
         onSelect: (day) {
           Navigator.pop(context);
           _select(day);
+          Future.microtask(() {
+            if (!mounted) return;
+            widget.onCreate(day);
+          });
         },
       ),
     );
@@ -256,7 +259,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     final showWeekStrip = false;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: c.card,
         borderRadius: BorderRadius.circular(24),
@@ -281,7 +284,6 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             isGoing: isGoing,
             onToday: _goToday,
             onMonth: _openMonthPicker,
-            onCreate: _createForSelectedDay,
             onToggleGoing: _toggleSelectedDayAttendance,
           ),
           if (showWeekStrip) ...[
@@ -296,7 +298,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             ),
             const SizedBox(height: 12),
           ] else
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
           _SelectedDayPanel(
             selectedDay: _selectedDay,
             events: selectedEvents,
@@ -326,7 +328,6 @@ class _CalendarTopBar extends StatelessWidget {
   final bool isGoing;
   final VoidCallback onToday;
   final VoidCallback onMonth;
-  final VoidCallback onCreate;
   final VoidCallback onToggleGoing;
 
   const _CalendarTopBar({
@@ -338,155 +339,329 @@ class _CalendarTopBar extends StatelessWidget {
     required this.isGoing,
     required this.onToday,
     required this.onMonth,
-    required this.onCreate,
     required this.onToggleGoing,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
+    final hasNearest = nearestMeta.trim().isNotEmpty &&
+        headline.trim() != 'لا توجد مناسبات قريبة';
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            InkWell(
-              onTap: onMonth,
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: c.accent.withValues(alpha: 0.075),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: c.accent.withValues(alpha: 0.13)),
-                ),
-                child: Icon(
-                  Icons.calendar_month_rounded,
-                  color: c.accent,
-                  size: 23,
-                ),
-              ),
-            ),
-            PositionedDirectional(
-              top: -6,
-              end: -6,
-              child: GestureDetector(
-                onTap: onCreate,
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: c.card, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: c.accent.withValues(alpha: 0.18),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.add_rounded,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: c.t1,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  height: 1.05,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'أقرب مناسبة',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: c.accent,
-                  fontSize: 12.4,
-                  fontWeight: FontWeight.w900,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                textDirection: TextDirection.rtl,
-                children: [
-                  Flexible(
-                    flex: 4,
-                    child: Text(
-                      headline,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.t1,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
+              Expanded(
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    InkWell(
+                      onTap: onMonth,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: c.accent.withValues(alpha: 0.075),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: c.accent.withValues(alpha: 0.13),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.calendar_month_rounded,
+                          color: c.accent,
+                          size: 21,
+                        ),
                       ),
                     ),
-                  ),
-                  if (nearestMeta.trim().isNotEmpty) ...[
-                    const SizedBox(width: 10),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: c.t3.withValues(alpha: 0.45),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                     Flexible(
-                      flex: 5,
                       child: Text(
-                        nearestMeta,
+                        title,
                         textAlign: TextAlign.right,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.visible,
                         style: TextStyle(
-                          color: c.t3,
-                          fontSize: 12.2,
-                          fontWeight: FontWeight.w800,
-                          height: 1.25,
+                          color: c.t1,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                          height: 1.02,
                         ),
                       ),
                     ),
                   ],
-                ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _DailyAttendancePill(
+                isGoing: isGoing,
+                onToggleGoing: onToggleGoing,
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'أقرب مناسبة',
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+                style: TextStyle(
+                  color: c.accent,
+                  fontSize: 12.6,
+                  fontWeight: FontWeight.w900,
+                  height: 1.15,
+                ),
+              ),
+              if (hasNearest) ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  flex: 4,
+                  child: Text(
+                    headline,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: c.t1,
+                      fontSize: 17.4,
+                      fontWeight: FontWeight.w900,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: c.t3.withValues(alpha: 0.42),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  flex: 6,
+                  child: Text(
+                    nearestMeta,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    style: TextStyle(
+                      color: c.t2,
+                      fontSize: 12.2,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    headline,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: c.t3,
+                      fontSize: 13.6,
+                      fontWeight: FontWeight.w800,
+                      height: 1.15,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyAttendancePill extends StatelessWidget {
+  final bool isGoing;
+  final VoidCallback onToggleGoing;
+
+  const _DailyAttendancePill({
+    required this.isGoing,
+    required this.onToggleGoing,
+  });
+
+  static const Color _confirmedGreen = Color(0xFF79A886);
+  static const Color _confirmedGreenLight = Color(0xFF9FC6A8);
+  static const Color _dangerRed = Color(0xFFB76B6B);
+
+  void _handleTap(BuildContext context) {
+    if (!isGoing) {
+      onToggleGoing();
+      return;
+    }
+
+    final c = context.cl;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: SafeArea(
+            child: Container(
+              margin: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+              decoration: BoxDecoration(
+                color: c.card,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: c.border.withValues(alpha: 0.12)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'حضورك اليوم',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: c.t1,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'أنت مسجل حاضر. إذا تغيّرت خطتك، اختر ما أقدر.',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: c.t2,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          icon: const Icon(Icons.check_rounded),
+                          label: const Text('حاضر'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _confirmedGreen,
+                            foregroundColor: c.bg,
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop();
+                            onToggleGoing();
+                          },
+                          icon: const Icon(Icons.close_rounded),
+                          label: const Text('ما أقدر'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: _dangerRed,
+                            side: const BorderSide(color: _dangerRed),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(17),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    return InkWell(
+      onTap: () => _handleTap(context),
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 92,
+        height: 68,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: isGoing
+              ? const LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [_confirmedGreenLight, _confirmedGreen],
+                )
+              : const LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [Color(0xFFE8D8B8), Color(0xFFC8AD83)],
+                ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isGoing
+                ? _confirmedGreen.withValues(alpha: 0.25)
+                : const Color(0xFFC8AD83).withValues(alpha: 0.22),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (isGoing ? _confirmedGreen : const Color(0xFFC8AD83))
+                  .withValues(alpha: 0.13),
+              blurRadius: 18,
+              offset: const Offset(0, 9),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        _MiniAction(
-          label: isGoing ? 'ما أقدر' : 'جاي اليوم',
-          icon: isGoing ? Icons.close_rounded : Icons.how_to_reg_rounded,
-          onTap: onToggleGoing,
-          filled: false,
-          danger: isGoing,
-          compact: false,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isGoing ? Icons.check_rounded : Icons.how_to_reg_rounded,
+              color: c.bg,
+              size: 19,
+            ),
+            const SizedBox(height: 5),
+            Text(
+              isGoing ? 'حاضر' : 'جاي اليوم',
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: c.bg,
+                fontSize: 12.4,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -870,14 +1045,13 @@ class _SelectedDayPanel extends StatelessWidget {
   final int goingCount;
   final bool isGoing;
   final bool Function(DiwaniyaCalendarEvent event) canManage;
-  final VoidCallback onCreate;
   final void Function(DiwaniyaCalendarEvent event) onAttendToggle;
   final void Function(DiwaniyaCalendarEvent event) onEdit;
   final void Function(DiwaniyaCalendarEvent event) onDelete;
   final VoidCallback onToggleDayAttendance;
   final VoidCallback onShowGoing;
   final String Function(DateTime dt) timeText;
-
+  final VoidCallback onCreate;
   const _SelectedDayPanel({
     required this.selectedDay,
     required this.events,
@@ -900,7 +1074,7 @@ class _SelectedDayPanel extends StatelessWidget {
     if (events.isEmpty) {
       return InkWell(
         onTap: onCreate,
-        borderRadius: BorderRadius.circular(16),
+borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
@@ -1031,7 +1205,18 @@ class _EventCardState extends State<_EventCard> {
     final event = widget.event;
 
     return InkWell(
-      onTap: () => setState(() => _expanded = !_expanded),
+      onTap: () {
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => _EventRsvpSheet(
+            event: event,
+            onAttendToggle: widget.onAttendToggle,
+            timeText: widget.timeText,
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -1179,6 +1364,159 @@ class _EventCardState extends State<_EventCard> {
     );
   }
 }
+
+class _EventRsvpSheet extends StatelessWidget {
+  final DiwaniyaCalendarEvent event;
+  final VoidCallback onAttendToggle;
+  final String Function(DateTime dt) timeText;
+
+  const _EventRsvpSheet({
+    required this.event,
+    required this.onAttendToggle,
+    required this.timeText,
+  });
+
+  static const Color _green = Color(0xFF79A886);
+  static const Color _orange = Color(0xFFC58A49);
+  static const Color _red = Color(0xFFB76B6B);
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    final dateText = '${event.startsAt.toLocal().day}/${event.startsAt.toLocal().month}/${event.startsAt.toLocal().year} · ${timeText(event.startsAt)}';
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(14),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: c.border.withValues(alpha: 0.12)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                event.title.trim().isEmpty ? 'مناسبة' : event.title.trim(),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: c.t1,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                dateText,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: c.t2,
+                  fontSize: 13.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        if (!event.isAttending) onAttendToggle();
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _green,
+                        foregroundColor: c.bg,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text('حاضر'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('خيار يمكن يحتاج تفعيل RSVP الكامل للمناسبة')),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _orange,
+                        side: const BorderSide(color: _orange),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text('يمكن'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        if (event.isAttending) onAttendToggle();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _red,
+                        side: const BorderSide(color: _red),
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text('أعتذر'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: c.inputBg.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: c.border.withValues(alpha: 0.08)),
+                ),
+                child: Row(
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    Icon(Icons.groups_rounded, color: c.accent, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        event.isAttending
+                            ? 'أنت مسجل ضمن الحاضرين. لاحقًا سيظهر هنا سجل الحاضرين، يمكن، والمعتذرين لكل مناسبة.'
+                            : 'لم تسجل حضورك لهذه المناسبة بعد.',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: c.t2,
+                          fontSize: 12.6,
+                          fontWeight: FontWeight.w700,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _TinyInlineMeta extends StatelessWidget {
   final IconData icon;

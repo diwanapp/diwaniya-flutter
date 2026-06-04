@@ -146,21 +146,37 @@ class DiwaniyaCalendarDayAttendance {
 class CalendarService {
   CalendarService._();
 
+
+
+
+  static String _calendarDateParam(DateTime value) {
+    final local = value.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$month-$day';
+  }
+
   static String _eventsPath(
     String diwaniyaId, {
     DateTime? from,
     DateTime? to,
-    int limit = 50,
+    int limit = 300,
   }) {
-    final did = Uri.encodeComponent(diwaniyaId.trim());
-    final parts = <String>['limit=$limit'];
+    final did = diwaniyaId.trim();
+    final params = <String, String>{
+      'limit': limit.toString(),
+    };
+
     if (from != null) {
-      parts.add('from=${Uri.encodeQueryComponent(from.toUtc().toIso8601String())}');
+      params['from'] = _calendarDateParam(from);
     }
+
     if (to != null) {
-      parts.add('to=${Uri.encodeQueryComponent(to.toUtc().toIso8601String())}');
+      params['to'] = _calendarDateParam(to);
     }
-    return '/diwaniyas/$did/calendar/events?${parts.join('&')}';
+
+    final query = Uri(queryParameters: params).query;
+    return "/diwaniyas/$did/calendar/events?$query";
   }
 
   static String _eventPath(String diwaniyaId, String eventId) {

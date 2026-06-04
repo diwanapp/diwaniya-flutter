@@ -134,100 +134,123 @@ class HomeChatOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    const chatAccent = Color(0xFF7FAE8A);
+    const chatAccent = Color(0xFF84B894);
 
-    final subtitle = preview.trim().isEmpty
+    final cleanSender = sender.trim();
+    final cleanPreview = preview.trim();
+    final line = cleanPreview.isEmpty
         ? 'لا توجد رسائل جديدة'
-        : (sender.trim().isEmpty ? preview : '$sender: $preview');
+        : cleanSender.isEmpty
+            ? cleanPreview
+            : '$cleanSender: $cleanPreview';
 
-    return Material(
-      color: Colors.transparent,
+    return Directionality(
+      textDirection: TextDirection.rtl,
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsetsDirectional.fromSTEB(20, 18, 20, 18),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
-              colors: [
-                chatAccent.withValues(alpha: 0.125),
-                c.card.withValues(alpha: 0.42),
-                chatAccent.withValues(alpha: 0.045),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: chatAccent.withValues(alpha: 0.18),
-            ),
-          ),
-          child: Row(
-            children: [
-              _SoftIconBadge(
-                icon: Icons.chat_bubble_rounded,
-                accent: chatAccent,
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [
+                    chatAccent.withValues(alpha: 0.125),
+                    c.card.withValues(alpha: 0.42),
+                    chatAccent.withValues(alpha: 0.045),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: chatAccent.withValues(alpha: 0.18),
+                ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+              child: Row(
+                textDirection: TextDirection.rtl,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _SoftIconBadge(
+                    icon: Icons.chat_bubble_rounded,
+                    accent: chatAccent,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (unreadCount > 0) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: chatAccent.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '$unreadCount جديد',
-                              style: TextStyle(
-                                color: chatAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
                         Text(
                           'الدردشة',
                           textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: c.t1,
-                            fontSize: 16.5,
+                            fontSize: 20,
                             fontWeight: FontWeight.w900,
                             height: 1.15,
                           ),
                         ),
+                        const SizedBox(height: 7),
+                        Text(
+                          line,
+                          textAlign: TextAlign.right,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: c.t2,
+                            fontSize: 13.6,
+                            fontWeight: FontWeight.w700,
+                            height: 1.25,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 7),
-                    Text(
-                      subtitle,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: c.t2,
-                        fontSize: 13.2,
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
-                      ),
+                  ),
+                ],
+              ),
+            ),
+            if (unreadCount > 0)
+              PositionedDirectional(
+                top: 12,
+                end: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: chatAccent.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: chatAccent.withValues(alpha: 0.18),
                     ),
-                  ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: chatAccent.withValues(alpha: 0.10),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    '$unreadCount جديد',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: chatAccent,
+                      fontSize: 11.8,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -264,7 +287,7 @@ class _SoftMetricTile extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,
-              end: Alignment.bottomLeft,
+              end: Alignment.bottomRight,
               colors: [
                 accent.withValues(alpha: 0.115),
                 c.card.withValues(alpha: 0.24),
@@ -275,10 +298,10 @@ class _SoftMetricTile extends StatelessWidget {
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Align(
-                alignment: AlignmentDirectional.centerEnd,
+                alignment: AlignmentDirectional.centerStart,
                 child: _SoftIconBadge(
                   icon: icon,
                   accent: accent,
