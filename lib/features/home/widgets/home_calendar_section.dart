@@ -1365,7 +1365,7 @@ class _EventCardState extends State<_EventCard> {
   }
 }
 
-class _EventRsvpSheet extends StatelessWidget {
+class _EventRsvpSheet extends StatefulWidget {
   final DiwaniyaCalendarEvent event;
   final VoidCallback onAttendToggle;
   final String Function(DateTime dt) timeText;
@@ -1376,14 +1376,169 @@ class _EventRsvpSheet extends StatelessWidget {
     required this.timeText,
   });
 
+  @override
+  State<_EventRsvpSheet> createState() => _EventRsvpSheetState();
+}
+
+class _EventRsvpSheetState extends State<_EventRsvpSheet> {
   static const Color _green = Color(0xFF79A886);
   static const Color _orange = Color(0xFFC58A49);
   static const Color _red = Color(0xFFB76B6B);
 
+  CalendarEventRsvps? _rsvps;
+  bool _loading = true;
+  String? _savingStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRsvps();
+  }
+
+  Future<void> _loadRsvps() async {
+    try {
+      final rsvps = await CalendarService.fetchEventRsvps(
+        widget.event.diwaniyaId,
+        widget.event.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _rsvps = rsvps;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _setStatus(String status) async {
+    if (_savingStatus != null) return;
+
+    setState(() => _savingStatus = status);
+    try {
+      final updated = await CalendarService.setEventRsvp(
+        widget.event.diwaniyaId,
+        widget.event.id,
+        status: status,
+      );
+
+      if (status == 'going' && !widget.event.isAttending) {
+        widget.onAttendToggle();
+      } else if (status != 'going' && widget.event.isAttending) {
+        widget.onAttendToggle();
+      }
+
+      if (!mounted) return;
+      setState(() => _rsvps = updated);
+
+      final label = switch (status) {
+        'going' => 'تم تسجيل حضورك',
+        'maybe' => 'تم تسجيلك ضمن يمكن',
+        'declined' => 'تم تسجيل اعتذارك',
+        _ => 'تم تحديث الرد',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(label)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تعذر تحديث الرد على المناسبة')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingStatus = null);
+    }
+  }
+
+  Widget _section({
+    required String title,
+    required int count,
+    required List<CalendarEventRsvpAttendee> attendees,
+    required Color color,
+  }) {
+    final c = context.cl;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: c.inputBg.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.border.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$title ($count)',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: c.t1,
+                    fontSize: 13.6,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (attendees.isEmpty)
+            Text(
+              'لا يوجد أسماء بعد',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: c.t3,
+                fontSize: 12.2,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else
+            Wrap(
+              textDirection: TextDirection.rtl,
+              spacing: 7,
+              runSpacing: 7,
+              children: attendees
+                  .map(
+                    (a) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: color.withValues(alpha: 0.12)),
+                      ),
+                      child: Text(
+                        a.userName.trim().isEmpty ? 'عضو' : a.userName.trim(),
+                        style: TextStyle(
+                          color: c.t1,
+                          fontSize: 11.8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final dateText = '${event.startsAt.toLocal().day}/${event.startsAt.toLocal().month}/${event.startsAt.toLocal().year} · ${timeText(event.startsAt)}';
+    final event = widget.event;
+    final local = event.startsAt.toLocal();
+    final dateText = '${local.day}/${local.month}/${local.year} · ${widget.timeText(event.startsAt)}';
+    final currentStatus = _rsvps?.currentUserStatus;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -1424,95 +1579,151 @@ class _EventRsvpSheet extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        if (!event.isAttending) onAttendToggle();
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _green,
-                        foregroundColor: c.bg,
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text('حاضر'),
+                    child: _RsvpActionButton(
+                      label: 'حاضر',
+                      color: _green,
+                      filled: currentStatus == 'going',
+                      loading: _savingStatus == 'going',
+                      onTap: () => _setStatus('going'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('خيار يمكن يحتاج تفعيل RSVP الكامل للمناسبة')),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _orange,
-                        side: const BorderSide(color: _orange),
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text('يمكن'),
+                    child: _RsvpActionButton(
+                      label: 'يمكن',
+                      color: _orange,
+                      filled: currentStatus == 'maybe',
+                      loading: _savingStatus == 'maybe',
+                      onTap: () => _setStatus('maybe'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        if (event.isAttending) onAttendToggle();
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _red,
-                        side: const BorderSide(color: _red),
-                        minimumSize: const Size.fromHeight(46),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: const Text('أعتذر'),
+                    child: _RsvpActionButton(
+                      label: 'أعتذر',
+                      color: _red,
+                      filled: currentStatus == 'declined',
+                      loading: _savingStatus == 'declined',
+                      onTap: () => _setStatus('declined'),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: c.inputBg.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: c.border.withValues(alpha: 0.08)),
-                ),
-                child: Row(
-                  textDirection: TextDirection.rtl,
-                  children: [
-                    Icon(Icons.groups_rounded, color: c.accent, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        event.isAttending
-                            ? 'أنت مسجل ضمن الحاضرين. لاحقًا سيظهر هنا سجل الحاضرين، يمكن، والمعتذرين لكل مناسبة.'
-                            : 'لم تسجل حضورك لهذه المناسبة بعد.',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: c.t2,
-                          fontSize: 12.6,
-                          fontWeight: FontWeight.w700,
-                          height: 1.45,
+              if (_loading)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: c.inputBg.withValues(alpha: 0.36),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: c.border.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'جاري تحميل سجل الحضور...',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: c.t2,
+                            fontSize: 12.8,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                )
+              else ...[
+                _section(
+                  title: 'الحاضرون',
+                  count: _rsvps?.goingCount ?? 0,
+                  attendees: _rsvps?.going ?? const <CalendarEventRsvpAttendee>[],
+                  color: _green,
                 ),
-              ),
+                const SizedBox(height: 8),
+                _section(
+                  title: 'يمكن يحضرون',
+                  count: _rsvps?.maybeCount ?? 0,
+                  attendees: _rsvps?.maybe ?? const <CalendarEventRsvpAttendee>[],
+                  color: _orange,
+                ),
+                const SizedBox(height: 8),
+                _section(
+                  title: 'المعتذرون',
+                  count: _rsvps?.declinedCount ?? 0,
+                  attendees: _rsvps?.declined ?? const <CalendarEventRsvpAttendee>[],
+                  color: _red,
+                ),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RsvpActionButton extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool filled;
+  final bool loading;
+  final VoidCallback onTap;
+
+  const _RsvpActionButton({
+    required this.label,
+    required this.color,
+    required this.filled,
+    required this.loading,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+
+    if (filled) {
+      return FilledButton(
+        onPressed: loading ? null : onTap,
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: c.bg,
+          minimumSize: const Size.fromHeight(46),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: loading
+            ? SizedBox(
+                width: 17,
+                height: 17,
+                child: CircularProgressIndicator(strokeWidth: 2, color: c.bg),
+              )
+            : Text(label),
+      );
+    }
+
+    return OutlinedButton(
+      onPressed: loading ? null : onTap,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color),
+        minimumSize: const Size.fromHeight(46),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      child: loading
+          ? SizedBox(
+              width: 17,
+              height: 17,
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            )
+          : Text(label),
     );
   }
 }

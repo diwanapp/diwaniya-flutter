@@ -77,6 +77,76 @@ class DiwaniyaCalendarEvent {
 }
 
 
+class CalendarEventRsvpAttendee {
+  final String userId;
+  final String userName;
+  final String status;
+  final DateTime? updatedAt;
+
+  const CalendarEventRsvpAttendee({
+    required this.userId,
+    required this.userName,
+    required this.status,
+    required this.updatedAt,
+  });
+
+  factory CalendarEventRsvpAttendee.fromBackend(Map<String, dynamic> raw) {
+    return CalendarEventRsvpAttendee(
+      userId: (raw['user_id'] ?? raw['userId'] ?? '').toString(),
+      userName: (raw['user_name'] ?? raw['userName'] ?? '').toString(),
+      status: (raw['status'] ?? '').toString(),
+      updatedAt: DiwaniyaCalendarEvent._dateValue(raw, 'updated_at', 'updatedAt'),
+    );
+  }
+}
+
+class CalendarEventRsvps {
+  final String eventId;
+  final String diwaniyaId;
+  final int goingCount;
+  final int maybeCount;
+  final int declinedCount;
+  final String? currentUserStatus;
+  final List<CalendarEventRsvpAttendee> going;
+  final List<CalendarEventRsvpAttendee> maybe;
+  final List<CalendarEventRsvpAttendee> declined;
+
+  const CalendarEventRsvps({
+    required this.eventId,
+    required this.diwaniyaId,
+    required this.goingCount,
+    required this.maybeCount,
+    required this.declinedCount,
+    required this.currentUserStatus,
+    required this.going,
+    required this.maybe,
+    required this.declined,
+  });
+
+  static List<CalendarEventRsvpAttendee> _attendees(dynamic raw) {
+    if (raw is! List) return const <CalendarEventRsvpAttendee>[];
+    return raw
+        .whereType<Map>()
+        .map((e) => CalendarEventRsvpAttendee.fromBackend(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  factory CalendarEventRsvps.fromBackend(Map<String, dynamic> raw) {
+    return CalendarEventRsvps(
+      eventId: (raw['event_id'] ?? raw['eventId'] ?? '').toString(),
+      diwaniyaId: (raw['diwaniya_id'] ?? raw['diwaniyaId'] ?? '').toString(),
+      goingCount: ((raw['going_count'] ?? raw['goingCount']) as num?)?.toInt() ?? 0,
+      maybeCount: ((raw['maybe_count'] ?? raw['maybeCount']) as num?)?.toInt() ?? 0,
+      declinedCount: ((raw['declined_count'] ?? raw['declinedCount']) as num?)?.toInt() ?? 0,
+      currentUserStatus: (raw['current_user_status'] ?? raw['currentUserStatus'])?.toString(),
+      going: _attendees(raw['going']),
+      maybe: _attendees(raw['maybe']),
+      declined: _attendees(raw['declined']),
+    );
+  }
+}
+
+
 class CalendarDayAttendee {
   final String userId;
   final String userName;
@@ -195,6 +265,19 @@ class CalendarService {
     final did = Uri.encodeComponent(diwaniyaId.trim());
     final eid = Uri.encodeComponent(eventId.trim());
     return '/diwaniyas/$did/calendar/events/$eid/cancel-attendance';
+  }
+
+
+  static String _rsvpsPath(String diwaniyaId, String eventId) {
+    final did = Uri.encodeComponent(diwaniyaId.trim());
+    final eid = Uri.encodeComponent(eventId.trim());
+    return '/diwaniyas/$did/calendar/events/$eid/rsvps';
+  }
+
+  static String _rsvpPath(String diwaniyaId, String eventId) {
+    final did = Uri.encodeComponent(diwaniyaId.trim());
+    final eid = Uri.encodeComponent(eventId.trim());
+    return '/diwaniyas/$did/calendar/events/$eid/rsvp';
   }
 
   static String _dateParam(DateTime value) {
@@ -319,6 +402,28 @@ class CalendarService {
     final updated = DiwaniyaCalendarEvent.fromBackend(Map<String, dynamic>.from(raw));
     await syncForDiwaniya(diwaniyaId);
     return updated;
+  }
+
+
+  static Future<CalendarEventRsvps> fetchEventRsvps(
+    String diwaniyaId,
+    String eventId,
+  ) async {
+    final raw = await ApiClient.get(_rsvpsPath(diwaniyaId, eventId));
+    return CalendarEventRsvps.fromBackend(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<CalendarEventRsvps> setEventRsvp(
+    String diwaniyaId,
+    String eventId, {
+    required String status,
+  }) async {
+    final clean = status.trim().toLowerCase();
+    final raw = await ApiClient.post(
+      _rsvpPath(diwaniyaId, eventId),
+      body: {'status': clean},
+    );
+    return CalendarEventRsvps.fromBackend(Map<String, dynamic>.from(raw));
   }
 
   static Future<void> deleteEvent(String diwaniyaId, String eventId) async {
