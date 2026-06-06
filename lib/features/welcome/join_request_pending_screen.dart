@@ -128,12 +128,12 @@ class _JoinRequestPendingScreenState extends State<JoinRequestPendingScreen> {
                     ],
                     const SizedBox(height: 18),
                     if (pending.isNotEmpty) ...[
-                      _SectionTitle(title: 'طلبات بانتظار الموافقة'),
+                      const _SectionTitle(title: 'طلبات بانتظار الموافقة'),
                       const SizedBox(height: 10),
                       ...pending.map((r) => _RequestCard(request: r)),
                       const SizedBox(height: 20),
                     ],
-                    _SectionTitle(title: 'سجل الطلبات'),
+                    const _SectionTitle(title: 'سجل الطلبات'),
                     const SizedBox(height: 10),
                     if (history.isEmpty)
                       _InfoCard(

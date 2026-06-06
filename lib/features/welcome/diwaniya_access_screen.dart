@@ -553,11 +553,11 @@ class _FeatureGrid extends StatelessWidget {
       mainAxisSpacing: 8,
       crossAxisSpacing: 8,
       children: [
-        _FeaturePill(icon: Icons.chat_rounded, label: 'الدردشة', color: const Color(0xFF60A5FA)),
+        const _FeaturePill(icon: Icons.chat_rounded, label: 'الدردشة', color: Color(0xFF60A5FA)),
         _FeaturePill(icon: Icons.event_available_rounded, label: 'التقويم', color: c.accent),
         _FeaturePill(icon: Icons.shopping_cart_rounded, label: 'المقاضي', color: c.warning),
         _FeaturePill(icon: Icons.account_balance_wallet_rounded, label: 'المصاريف', color: c.success),
-        _FeaturePill(icon: Icons.how_to_vote_rounded, label: 'التصويت', color: const Color(0xFF60A5FA)),
+        const _FeaturePill(icon: Icons.how_to_vote_rounded, label: 'التصويت', color: Color(0xFF60A5FA)),
         _FeaturePill(icon: Icons.photo_library_rounded, label: 'الألبوم', color: c.error),
       ],
     );

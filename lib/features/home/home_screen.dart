@@ -30,10 +30,8 @@ import '../welcome/join_request_pending_screen.dart';
 import '../settings/manager_join_requests_screen.dart';
 import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
-import 'widgets/diamond_subscription_card.dart';
 import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
-import 'widgets/home_ad_banner.dart';
 import 'widgets/home_handle.dart';
 import 'widgets/home_poll_banner.dart';
 import 'widgets/home_calendar_section.dart';
@@ -55,7 +53,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _upgradeBannerDismissed = false;
+  // Dormant placeholder for a future dashboard-controlled upgrade card.
+  final bool _upgradeBannerDismissed = false;
   int _pendingJoinRequestCount = 0;
   bool _isRefreshingHome = false;
   int _refreshGeneration = 0;
@@ -166,27 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _showUpgradeBanner =>
       _hasDiwaniya && !EntitlementService.isPremium && !_upgradeBannerDismissed;
-
-  Future<void> _openUpgradeFromBanner() async {
-    final upgraded = await PaywallService.showFullPaywall(
-      context,
-      trigger: PaywallTrigger.homeBanner,
-    );
-    if (!mounted) return;
-    if (upgraded) {
-      _snack(Ar.premiumActivated);
-    }
-  }
-
-  void _dismissUpgradeBanner() {
-    PaywallService.trackEvent(
-      AnalyticsEvents.upgradeBannerDismissed,
-      properties: {'source': 'home'},
-    );
-    setState(() {
-      _upgradeBannerDismissed = true;
-    });
-  }
 
   void _snack(String msg) {
     if (!mounted) return;
@@ -503,7 +481,6 @@ class _HomeScreenState extends State<HomeScreen> {
       diwaniyaShoppingItems[_diwaniyaId] ?? [];
   List<Debt> get _debts => ExpenseService.optimized(_diwaniyaId);
 
-  DiwaniyaPoll? get _activePoll => _polls.where((p) => p.isActive).firstOrNull;
   int get _activePolls => _polls.where((p) => p.isActive).length;
 
   DiwaniyaPoll? get _actionableActivePoll => _polls
@@ -1630,8 +1607,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final diw = _diw!;
     final bal = _myBalance;
     final balStr = bal >= 0 ? '+${bal.toInt()}' : '${bal.toInt()}';
-    final showHomeAds = false;
-    final showHomeUpgradeCard = false;
 
     if (_showUpgradeBanner) {
       final bannerKey = 'home:$_diwaniyaId:${EntitlementService.isPremium}';
@@ -1713,12 +1688,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       onCapturePhoto: _capturePhotoQuick,
                     ),
                     const SizedBox(height: 18),
-                    if (showHomeAds) ...[
-                      const _HomeVisualBreathingSpace(
-                        child: HomeAdBanner(),
-                      ),
-                      const SizedBox(height: 18),
-                    ],
                     if (_actionableActivePoll != null) ...[
                       GestureDetector(
                         onTap: _openPolls,
@@ -1726,13 +1695,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           poll: _actionableActivePoll!,
                           activeCount: _actionableActivePolls,
                         ),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-                    if (showHomeUpgradeCard && _showUpgradeBanner) ...[
-                      _HomeUpgradeBanner(
-                        onTap: _openUpgradeFromBanner,
-                        onDismiss: _dismissUpgradeBanner,
                       ),
                       const SizedBox(height: 14),
                     ],
@@ -1786,34 +1748,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-
-class _HomeVisualBreathingSpace extends StatelessWidget {
-  final Widget child;
-
-  const _HomeVisualBreathingSpace({
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: c.accent.withValues(alpha: 0.035),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
 
 class _HomeVisualGroup extends StatelessWidget {
   final String title;
@@ -1937,31 +1871,6 @@ class _HomeJoinRequestManagerBadge extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _HomeUpgradeBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  final VoidCallback onDismiss;
-
-  const _HomeUpgradeBanner({
-    required this.onTap,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DiamondSubscriptionCard(
-      title: 'ديوانيتكم تستاهل أكثر',
-      description: 'الباقة الماسية تعطيكم مساحة أكبر ومزايا أكثر',
-      badgeLine1: 'عرض',
-      badgeLine2: 'الإطلاق',
-      offerPercent: '50%',
-      offerText: 'خصم على الاشتراك السنوي',
-      buttonText: 'استفيدوا من العرض',
-      onPressed: onTap,
-      onDismiss: onDismiss,
     );
   }
 }

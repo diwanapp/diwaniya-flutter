@@ -87,6 +87,8 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     return _attendanceForDay(day)?.isCurrentUserAttending ?? false;
   }
 
+  bool get _showWeekStrip => false;
+
   List<DiwaniyaCalendarEvent> get _upcomingEvents {
     final now = DateTime.now();
     final horizon = now.add(const Duration(days: 370));
@@ -98,15 +100,6 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
           !local.isAfter(horizon);
     }).toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
-  }
-
-  int _weekEventCount() {
-    final start = _startOfWeek(DateTime.now());
-    final end = start.add(const Duration(days: 7));
-    return widget.events.where((e) {
-      final local = e.startsAt.toLocal();
-      return !e.isCancelled && !local.isBefore(start) && local.isBefore(end);
-    }).length;
   }
 
   String _summaryText() {
@@ -256,7 +249,6 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
     final selectedEvents = _eventsForDay(_selectedDay);
     final goingCount = _totalGoingForDay(_selectedDay);
     final isGoing = _isCurrentUserGoing(_selectedDay);
-    final showWeekStrip = false;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -286,7 +278,7 @@ class _HomeCalendarSectionState extends State<HomeCalendarSection> {
             onMonth: _openMonthPicker,
             onToggleGoing: _toggleSelectedDayAttendance,
           ),
-          if (showWeekStrip) ...[
+          if (_showWeekStrip) ...[
             const SizedBox(height: 12),
             _WeekStrip(
               days: _weekDays,
@@ -657,79 +649,6 @@ class _DailyAttendancePill extends StatelessWidget {
                 fontSize: 12.4,
                 fontWeight: FontWeight.w900,
                 height: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniAction extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool filled;
-  final bool compact;
-  final bool danger;
-
-  const _MiniAction({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    required this.filled,
-    this.compact = false,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    final dangerColor = c.error;
-    final fg = filled
-        ? Colors.white
-        : danger
-            ? dangerColor
-            : c.accent;
-
-    final bg = filled
-        ? c.accent
-        : danger
-            ? dangerColor.withValues(alpha: 0.08)
-            : c.accent.withValues(alpha: 0.06);
-
-    final borderColor = danger
-        ? dangerColor.withValues(alpha: 0.18)
-        : c.accent.withValues(alpha: 0.16);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(13),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        width: 88,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-          border: filled ? null : Border.all(color: borderColor),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: fg, size: 16),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 11.2,
-                  fontWeight: FontWeight.w900,
-                ),
               ),
             ),
           ],
@@ -1197,7 +1116,7 @@ class _EventCard extends StatefulWidget {
 }
 
 class _EventCardState extends State<_EventCard> {
-  bool _expanded = false;
+  final bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1758,54 +1677,6 @@ class _TinyInlineMeta extends StatelessWidget {
               color: c.t2,
               fontSize: 10.2,
               fontWeight: FontWeight.w800,
-              height: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TinyBadge extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool success;
-
-  const _TinyBadge({
-    required this.icon,
-    required this.label,
-    this.success = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    final color = success ? c.success : c.t3;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: success
-            ? c.success.withValues(alpha: 0.10)
-            : c.card.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: success
-              ? c.success.withValues(alpha: 0.12)
-              : c.border.withValues(alpha: 0.055),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12.5, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: success ? c.success : c.t2,
-              fontSize: 10.6,
-              fontWeight: FontWeight.w900,
               height: 1,
             ),
           ),

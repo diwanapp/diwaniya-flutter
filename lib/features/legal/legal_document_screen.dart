@@ -44,7 +44,7 @@ class LegalDocumentScreen extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return _ErrorState(
+              return const _ErrorState(
                 message: 'تعذر تحميل المستند. يرجى المحاولة لاحقًا.',
               );
             }

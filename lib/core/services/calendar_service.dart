@@ -246,7 +246,7 @@ class CalendarService {
     }
 
     final query = Uri(queryParameters: params).query;
-    return "/diwaniyas/$did/calendar/events?$query";
+    return '/diwaniyas/$did/calendar/events?$query';
   }
 
   static String _eventPath(String diwaniyaId, String eventId) {

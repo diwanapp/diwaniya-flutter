@@ -327,7 +327,7 @@ class _ScorekeepingScreenState extends State<ScorekeepingScreen> {
             required Set<String?> blocked,
           }) {
             return DropdownButtonFormField<String?>(
-              value: value,
+              initialValue: value,
               items: itemsFor(blocked),
               onChanged: (v) => setSheetState(() => onChanged(v)),
               decoration: InputDecoration(

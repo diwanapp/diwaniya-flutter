@@ -420,9 +420,9 @@ class _FirstTimeSection extends StatelessWidget {
                   color: const Color(0xFFC8AD83).withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.person_add_alt_1_rounded,
-                  color: const Color(0xFFC8AD83),
+                  color: Color(0xFFC8AD83),
                   size: 19,
                 ),
               ),

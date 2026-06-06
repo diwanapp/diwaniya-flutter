@@ -174,7 +174,7 @@ class HomeChatOverviewCard extends StatelessWidget {
                 textDirection: TextDirection.rtl,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _SoftIconBadge(
+                  const _SoftIconBadge(
                     icon: Icons.chat_bubble_rounded,
                     accent: chatAccent,
                   ),
@@ -241,7 +241,7 @@ class HomeChatOverviewCard extends StatelessWidget {
                   child: Text(
                     '$unreadCount جديد',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: chatAccent,
                       fontSize: 11.8,
                       fontWeight: FontWeight.w900,
