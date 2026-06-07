@@ -29,6 +29,11 @@ abstract final class Endpoints {
   static String diwaniyaRegenerateInvite(String id) =>
       '/diwaniyas/$id/regenerate-invite';
 
+  // Geo / Location
+  static const String geoCities = '/api/geo/cities';
+  static String geoDistricts(String cityId) => '/api/geo/cities/$cityId/districts';
+  static String diwaniyaLocation(String id) => '/diwaniyas/$id/location';
+
   // ── Diwaniyas ──
   static const String diwaniyas = '/diwaniyas';
   static String diwaniya(String id) => '/diwaniyas/$id';

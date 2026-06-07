@@ -13,6 +13,11 @@ class DiwaniyaInfo {
   final String? invitationCode;
   final String? creatorUserId;
   final String? imagePath;
+  final String? cityId;
+  final String? districtId;
+  final double? locationLat;
+  final double? locationLng;
+  final String? locationSource;
 
   const DiwaniyaInfo({
     required this.id,
@@ -27,6 +32,11 @@ class DiwaniyaInfo {
     this.invitationCode,
     this.creatorUserId,
     this.imagePath,
+    this.cityId,
+    this.districtId,
+    this.locationLat,
+    this.locationLng,
+    this.locationSource,
   });
 }
 

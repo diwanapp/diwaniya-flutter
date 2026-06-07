@@ -1,6 +1,7 @@
 import 'api_client.dart';
 import 'api_exception.dart';
 import 'endpoints.dart';
+import '../models/geo_models.dart';
 
 /// Diwaniya + invites + members endpoints per `API_CONTRACT_V1`.
 ///
@@ -218,6 +219,54 @@ class DiwaniyaApi {
   }
 
   // ── Helpers ──
+
+
+  // Geo / Location
+
+  static Future<List<GeoCity>> listGeoCities() async {
+    final response = await ApiClient.get(Endpoints.geoCities);
+    final map = _expectMap(response, 'DiwaniyaApi.listGeoCities');
+    final items = map['cities'];
+    if (items is! List) return const <GeoCity>[];
+    return items
+        .whereType<Map>()
+        .map((e) => GeoCity.fromJson(Map<String, dynamic>.from(e)))
+        .where((c) => c.id.trim().isNotEmpty && c.nameAr.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  static Future<List<GeoDistrict>> listGeoDistricts(String cityId) async {
+    final city = _normalizedRequiredId(cityId, 'معرّف المدينة');
+    final response = await ApiClient.get(Endpoints.geoDistricts(city));
+    final map = _expectMap(response, 'DiwaniyaApi.listGeoDistricts');
+    final items = map['districts'];
+    if (items is! List) return const <GeoDistrict>[];
+    return items
+        .whereType<Map>()
+        .map((e) => GeoDistrict.fromJson(Map<String, dynamic>.from(e)))
+        .where((d) => d.id.trim().isNotEmpty && d.nameAr.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  static Future<DiwaniyaLocation> updateLocation(
+    String diwaniyaId, {
+    required String cityId,
+    required String districtId,
+  }) async {
+    final d = _normalizedRequiredId(diwaniyaId, 'معرّف الديوانية');
+    final c = _normalizedRequiredId(cityId, 'معرّف المدينة');
+    final district = _normalizedRequiredId(districtId, 'معرّف الحي');
+
+    final response = await ApiClient.patch(
+      Endpoints.diwaniyaLocation(d),
+      body: {
+        'city_id': c,
+        'district_id': district,
+      },
+    );
+    final map = _expectMap(response, 'DiwaniyaApi.updateLocation');
+    return DiwaniyaLocation.fromJson(map);
+  }
 
   static Map<String, dynamic> _expectMap(dynamic response, String endpoint) {
     if (response is Map<String, dynamic>) return response;

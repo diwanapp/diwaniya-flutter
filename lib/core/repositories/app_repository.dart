@@ -70,6 +70,11 @@ class AppRepository {
                 if (d.invitationCode != null) 'invitationCode': d.invitationCode,
                 if (d.creatorUserId != null) 'creatorUserId': d.creatorUserId,
                 if (d.imagePath != null) 'imagePath': d.imagePath,
+                if (d.cityId != null) 'cityId': d.cityId,
+                if (d.districtId != null) 'districtId': d.districtId,
+                if (d.locationLat != null) 'locationLat': d.locationLat,
+                if (d.locationLng != null) 'locationLng': d.locationLng,
+                if (d.locationSource != null) 'locationSource': d.locationSource,
               },
             )
             .toList(),
@@ -366,6 +371,11 @@ class AppRepository {
             invitationCode: j['invitationCode'] as String?,
             creatorUserId: j['creatorUserId'] as String?,
             imagePath: j['imagePath'] as String?,
+            cityId: j['cityId'] as String?,
+            districtId: j['districtId'] as String?,
+            locationLat: (j['locationLat'] as num?)?.toDouble(),
+            locationLng: (j['locationLng'] as num?)?.toDouble(),
+            locationSource: j['locationSource'] as String?,
           ),
         );
       }

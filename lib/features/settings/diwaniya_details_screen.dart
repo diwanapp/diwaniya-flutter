@@ -8,9 +8,12 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../core/api/api_exception.dart';
+import '../../core/api/diwaniya_api.dart';
+import '../../core/models/geo_models.dart';
 import '../../core/models/mock_data.dart';
 import '../../core/models/subscription_status.dart';
 import '../../core/navigation/app_routes.dart';
+import '../../core/repositories/app_repository.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/diwaniya_management_service.dart';
 import '../../core/services/expense_service.dart';
@@ -29,9 +32,13 @@ class DiwaniyaDetailsScreen extends StatefulWidget {
 class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   late String _did;
   bool _editing = false;
+  bool _loadingLocation = false;
+  bool _savingLocation = false;
+  List<GeoCity> _geoCities = const <GeoCity>[];
+  List<GeoDistrict> _geoDistricts = const <GeoDistrict>[];
+  GeoCity? _selectedCity;
+  GeoDistrict? _selectedDistrict;
   late final TextEditingController _nameCtrl;
-  late final TextEditingController _cityCtrl;
-  late final TextEditingController _districtCtrl;
   final _picker = ImagePicker();
 
   @override
@@ -40,8 +47,6 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
     _did = widget.diwaniyaId;
     final diw = _diw;
     _nameCtrl = TextEditingController(text: diw?.name ?? '');
-    _cityCtrl = TextEditingController(text: diw?.city ?? '');
-    _districtCtrl = TextEditingController(text: diw?.district ?? '');
     dataVersion.addListener(_refresh);
     Future.microtask(() async {
       await DiwaniyaManagementService.refreshMembersFromServer(_did);
@@ -52,8 +57,6 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _cityCtrl.dispose();
-    _districtCtrl.dispose();
     dataVersion.removeListener(_refresh);
     super.dispose();
   }
@@ -121,17 +124,154 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
         false;
   }
 
-  Future<void> _saveInfo() async {
-    await AuthService.updateDiwaniyaViaApi(
-      _did,
-      name: _nameCtrl.text,
-      city: _cityCtrl.text,
-      district: _districtCtrl.text,
-    );
-    if (!mounted) return;
-    setState(() => _editing = false);
-    _snack(Ar.infoSaved);
+
+  Future<void> _ensureGeoLoaded() async {
+    if (_loadingLocation || _geoCities.isNotEmpty) return;
+
+    setState(() => _loadingLocation = true);
+    try {
+      final cities = await DiwaniyaApi.listGeoCities();
+      if (!mounted) return;
+
+      final diw = _diw;
+      GeoCity? selectedCity;
+      if (diw?.cityId != null) {
+        selectedCity = cities.where((c) => c.id == diw!.cityId).firstOrNull;
+      }
+      selectedCity ??= cities.where((c) => c.nameAr == diw?.city).firstOrNull;
+      selectedCity ??= cities.isNotEmpty ? cities.first : null;
+
+      var districts = const <GeoDistrict>[];
+      GeoDistrict? selectedDistrict;
+      if (selectedCity != null) {
+        districts = await DiwaniyaApi.listGeoDistricts(selectedCity.id);
+        if (!mounted) return;
+
+        if (diw?.districtId != null) {
+          selectedDistrict =
+              districts.where((d) => d.id == diw!.districtId).firstOrNull;
+        }
+        selectedDistrict ??=
+            districts.where((d) => d.nameAr == diw?.district).firstOrNull;
+        selectedDistrict ??= districts.isNotEmpty ? districts.first : null;
+      }
+
+      setState(() {
+        _geoCities = cities;
+        _geoDistricts = districts;
+        _selectedCity = selectedCity;
+        _selectedDistrict = selectedDistrict;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر تحميل المدن والأحياء. تحقق من الاتصال وحاول مرة أخرى.');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
   }
+
+  Future<void> _selectInlineCity(GeoCity city) async {
+    setState(() {
+      _selectedCity = city;
+      _selectedDistrict = null;
+      _geoDistricts = const <GeoDistrict>[];
+      _loadingLocation = true;
+    });
+
+    try {
+      final districts = await DiwaniyaApi.listGeoDistricts(city.id);
+      if (!mounted) return;
+
+      setState(() {
+        _geoDistricts = districts;
+        _selectedDistrict = districts.isNotEmpty ? districts.first : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر تحميل أحياء المدينة المختارة.');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+      }
+    }
+  }
+
+  Future<void> _saveInfo() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      _snack('اكتب اسم الديوانية أولًا.');
+      return;
+    }
+
+    setState(() => _savingLocation = true);
+    try {
+      DiwaniyaManagementService.updateDiwaniyaInfo(
+        _did,
+        name: name,
+      );
+
+      final city = _selectedCity;
+      final district = _selectedDistrict;
+      DiwaniyaLocation? updatedLocation;
+
+      if (city != null && district != null) {
+        updatedLocation = await DiwaniyaApi.updateLocation(
+          _did,
+          cityId: city.id,
+          districtId: district.id,
+        );
+      }
+
+      final idx = allDiwaniyas.indexWhere((d) => d.id == _did);
+      if (idx != -1) {
+        final old = allDiwaniyas[idx];
+        allDiwaniyas[idx] = DiwaniyaInfo(
+          id: old.id,
+          name: name,
+          district:
+              updatedLocation?.districtNameAr ?? district?.nameAr ?? old.district,
+          city: updatedLocation?.cityNameAr ??
+              updatedLocation?.city ??
+              city?.nameAr ??
+              old.city,
+          managerId: old.managerId,
+          country: old.country,
+          expectedMembers: old.expectedMembers,
+          memberCount: old.memberCount,
+          color: old.color,
+          invitationCode: old.invitationCode,
+          creatorUserId: old.creatorUserId,
+          imagePath: old.imagePath,
+          cityId: updatedLocation?.cityId ?? city?.id ?? old.cityId,
+          districtId:
+              updatedLocation?.districtId ?? district?.id ?? old.districtId,
+          locationLat: updatedLocation?.locationLat ?? old.locationLat,
+          locationLng: updatedLocation?.locationLng ?? old.locationLng,
+          locationSource:
+              updatedLocation?.locationSource ?? old.locationSource,
+        );
+        AppRepository.saveDiwaniyas();
+        dataVersion.value++;
+      }
+
+      if (!mounted) return;
+      setState(() => _editing = false);
+      _snack('تم حفظ التعديلات');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _snack(_arabicForError(e));
+    } catch (_) {
+      if (!mounted) return;
+      _snack('تعذر حفظ التعديلات. حاول مرة أخرى.');
+    } finally {
+      if (mounted) {
+        setState(() => _savingLocation = false);
+      }
+    }
+  }
+
 
   Future<void> _pickImage() async {
     final c = context.cl;
@@ -541,7 +681,10 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
               ),
               if (_isManager && !_editing)
                 IconButton(
-                  onPressed: () => setState(() => _editing = true),
+                  onPressed: () async {
+                    setState(() => _editing = true);
+                    await _ensureGeoLoaded();
+                  },
                   icon: Icon(Icons.edit_rounded, size: 20, color: c.accent),
                   tooltip: Ar.editInfo,
                 ),
@@ -551,9 +694,28 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
           if (_editing) ...[
             _Field(c: c, label: Ar.diwaniyaName, controller: _nameCtrl),
             const SizedBox(height: 10),
-            _Field(c: c, label: Ar.city, controller: _cityCtrl),
+            _LocationDropdown<GeoCity>(
+              c: c,
+              label: Ar.city,
+              value: _selectedCity,
+              items: _geoCities,
+              itemLabel: (x) => x.nameAr,
+              onChanged: (city) {
+                if (city == null) return;
+                _selectInlineCity(city);
+              },
+            ),
             const SizedBox(height: 10),
-            _Field(c: c, label: Ar.district, controller: _districtCtrl),
+            _LocationDropdown<GeoDistrict>(
+              c: c,
+              label: Ar.district,
+              value: _selectedDistrict,
+              items: _geoDistricts,
+              itemLabel: (x) => x.nameAr,
+              onChanged: (district) {
+                setState(() => _selectedDistrict = district);
+              },
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -561,7 +723,7 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
                   child: SizedBox(
                     height: 42,
                     child: ElevatedButton(
-                      onPressed: _saveInfo,
+                      onPressed: _savingLocation ? null : _saveInfo,
                       child: const Text(Ar.saveChanges),
                     ),
                   ),
@@ -572,8 +734,6 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
                   child: TextButton(
                     onPressed: () {
                       _nameCtrl.text = diw.name;
-                      _cityCtrl.text = diw.city;
-                      _districtCtrl.text = diw.district;
                       setState(() => _editing = false);
                     },
                     child: Text(Ar.cancel, style: TextStyle(color: c.t3)),
@@ -884,6 +1044,62 @@ class _DiwaniyaDetailsScreenState extends State<DiwaniyaDetailsScreen> {
             })(),
         ],
       ),
+    );
+  }
+}
+
+
+class _LocationDropdown<T> extends StatelessWidget {
+  final CL c;
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T) itemLabel;
+  final ValueChanged<T?> onChanged;
+
+  const _LocationDropdown({
+    required this.c,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      isExpanded: true,
+      dropdownColor: c.card,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: c.t3),
+        filled: true,
+        fillColor: c.inputBg,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: c.border.withValues(alpha: 0.22)),
+        ),
+      ),
+      style: TextStyle(
+        color: c.t1,
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      items: items
+          .map(
+            (item) => DropdownMenuItem<T>(
+              value: item,
+              child: Text(itemLabel(item), textAlign: TextAlign.right),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: items.isEmpty ? null : onChanged,
     );
   }
 }
