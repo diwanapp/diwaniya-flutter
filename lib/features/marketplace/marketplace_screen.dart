@@ -51,6 +51,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return allDiwaniyas.where((d) => d.id == currentDiwaniyaId).firstOrNull;
   }
 
+  String? _locationLabelFor(DiwaniyaInfo? active) {
+    if (active == null) return null;
+
+    final city = active.city.trim();
+    final district = active.district.trim();
+
+    if (city.isEmpty && district.isEmpty) return null;
+    if (city.isEmpty) return district;
+    if (district.isEmpty) return city;
+    return '$district · $city';
+  }
+
   List<Store> _applyDiwaniyaLocation(List<Store> stores) {
     final active = _activeDiwaniya;
     if (active == null) return stores;
@@ -93,9 +105,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final c = context.cl;
     final isFiltering = _filter.isActive;
     final active = _activeDiwaniya;
-    final locationLabel = active == null
-        ? null
-        : '${active.city}${active.district.isNotEmpty ? ' · ${active.district}' : ''}';
+    final locationLabel = _locationLabelFor(active);
 
     final hasResults = isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty;
 
@@ -114,7 +124,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  Ar.marketplace,
+                  'سوق الديوانية',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -123,8 +133,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
                 Text(
                   locationLabel == null
-                      ? Ar.marketplaceSubtitle
-                      : 'يعرض محلات $locationLabel',
+                      ? 'خدمات قريبة من ديوانيتك'
+                      : 'خدمات قريبة من $locationLabel',
                   style: TextStyle(fontSize: 12, color: c.t3),
                 ),
               ],
@@ -141,6 +151,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     onChanged: (v) =>
                         _updateFilter((f) => f.copyWith(query: v.trim())),
                     onClear: () => _updateFilter((f) => f.copyWith(query: '')),
+                  ),
+                  const SizedBox(height: 12),
+                  _MarketplaceLocationBrief(
+                    active: active,
+                    locationLabel: locationLabel,
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -272,3 +287,91 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 }
+
+class _MarketplaceLocationBrief extends StatelessWidget {
+  final DiwaniyaInfo? active;
+  final String? locationLabel;
+
+  const _MarketplaceLocationBrief({
+    required this.active,
+    required this.locationLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    final hasLocation = locationLabel != null && locationLabel!.trim().isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: c.card.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: c.border.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: c.accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.location_on_rounded,
+              color: c.accent,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasLocation
+                      ? 'السوق مرتبط بموقع الديوانية'
+                      : 'حدد موقع الديوانية لنتائج أدق',
+                  style: TextStyle(
+                    color: c.t1,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasLocation
+                      ? locationLabel!
+                      : 'اختر المدينة والحي من تفاصيل الديوانية',
+                  style: TextStyle(
+                    color: c.t2,
+                    fontSize: 12.2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: c.accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              'قريبًا Google',
+              style: TextStyle(
+                color: c.accent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

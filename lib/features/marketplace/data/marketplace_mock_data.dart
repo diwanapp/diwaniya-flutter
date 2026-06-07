@@ -3,14 +3,12 @@ import '../models/store_model.dart';
 import '../models/store_offer_model.dart';
 
 const marketplaceCategories = <String, IconData>{
-  'مقاضي': Icons.shopping_basket_rounded,
-  'قهوة وشاي': Icons.coffee_rounded,
+  'بقالة': Icons.shopping_basket_rounded,
+  'شاهي وقهوة': Icons.coffee_rounded,
+  'حلا': Icons.cake_rounded,
   'معسلات': Icons.whatshot_rounded,
   'صيانة': Icons.build_rounded,
-  'تنظيف': Icons.cleaning_services_rounded,
-  'ثلج ومياه': Icons.ac_unit_rounded,
-  'لوازم جلسات': Icons.chair_rounded,
-  'تأجير مستلزمات': Icons.inventory_2_rounded,
+  'خدمات نظافة': Icons.cleaning_services_rounded,
 };
 
 final mockStores = <Store>[
