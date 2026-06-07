@@ -1,8 +1,25 @@
+import 'package:flutter/material.dart';
+import '../../../core/api/diwaniya_api.dart';
 import '../data/marketplace_mock_data.dart';
 import '../models/marketplace_filter_model.dart';
 import '../models/store_model.dart';
 
 typedef MarketplaceSourceResolver = List<Store> Function();
+
+
+class MarketplaceLoadResult {
+  final List<Store> stores;
+  final bool isConfigured;
+  final String? message;
+  final String? locationLabel;
+
+  const MarketplaceLoadResult({
+    required this.stores,
+    required this.isConfigured,
+    required this.message,
+    required this.locationLabel,
+  });
+}
 
 class MarketplaceService {
   MarketplaceService._();
@@ -99,6 +116,114 @@ class MarketplaceService {
         break;
     }
     return list;
+  }
+
+  static Future<MarketplaceLoadResult> loadBackendPlaces({
+    required String diwaniyaId,
+    String? category,
+  }) async {
+    final response = await DiwaniyaApi.searchMarketplacePlaces(
+      diwaniyaId: diwaniyaId,
+      category: category,
+    );
+
+    final placesRaw = response['places'];
+    final cleanCategory = (response['category'] as String?)?.trim();
+    final locationLabel = (response['location_label'] as String?)?.trim();
+    final message = (response['message'] as String?)?.trim();
+    final isConfigured = response['is_configured'] == true;
+
+    final stores = placesRaw is List
+        ? placesRaw
+            .whereType<Map>()
+            .map(
+              (e) => _storeFromPlace(
+                Map<String, dynamic>.from(e),
+                fallbackCategory: cleanCategory,
+                locationLabel: locationLabel,
+              ),
+            )
+            .where((s) => s.id.trim().isNotEmpty && s.name.trim().isNotEmpty)
+            .toList(growable: false)
+        : const <Store>[];
+
+    return MarketplaceLoadResult(
+      stores: stores,
+      isConfigured: isConfigured,
+      message: message == null || message.isEmpty ? null : message,
+      locationLabel:
+          locationLabel == null || locationLabel.isEmpty ? null : locationLabel,
+    );
+  }
+
+  static Store _storeFromPlace(
+    Map<String, dynamic> json, {
+    required String? fallbackCategory,
+    required String? locationLabel,
+  }) {
+    final jsonCategory = (json['category'] as String?)?.trim();
+    final category = jsonCategory != null && jsonCategory.isNotEmpty
+        ? jsonCategory
+        : (fallbackCategory != null && fallbackCategory.trim().isNotEmpty
+            ? fallbackCategory.trim()
+            : 'خدمات');
+
+    final coords = _locationParts(locationLabel);
+    final ratingRaw = json['rating'];
+    final reviewRaw = json['user_rating_count'];
+    final openRaw = json['is_open_now'];
+
+    return Store(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      category: category,
+      city: coords.$2,
+      district: coords.$1,
+      rating: ratingRaw is num ? ratingRaw.toDouble() : 0,
+      reviewCount: reviewRaw is num ? reviewRaw.toInt() : 0,
+      distanceKm: 0,
+      isOpenNow: openRaw == true,
+      description: (json['address'] ?? '').toString(),
+      tags: <String>[
+        category,
+        if ((json['address'] as String?)?.trim().isNotEmpty == true)
+          (json['address'] as String).trim(),
+      ],
+      icon: _iconForCategory(category),
+    );
+  }
+
+  static (String, String) _locationParts(String? locationLabel) {
+    final clean = locationLabel?.trim();
+    if (clean == null || clean.isEmpty) return ('', '');
+
+    final parts = clean
+        .split('·')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    if (parts.length >= 2) return (parts.first, parts.last);
+    return ('', clean);
+  }
+
+  static IconData _iconForCategory(String category) {
+    switch (category) {
+      case 'بقالة':
+        return Icons.shopping_basket_rounded;
+      case 'شاهي وقهوة':
+        return Icons.coffee_rounded;
+      case 'حلا':
+        return Icons.cake_rounded;
+      case 'معسلات':
+        return Icons.whatshot_rounded;
+      case 'صيانة':
+        return Icons.build_rounded;
+      case 'خدمات نظافة':
+        return Icons.cleaning_services_rounded;
+      default:
+        return Icons.storefront_rounded;
+    }
   }
 
   static Store? getStoreById(String id) {

@@ -268,6 +268,23 @@ class DiwaniyaApi {
     return DiwaniyaLocation.fromJson(map);
   }
 
+  static Future<Map<String, dynamic>> searchMarketplacePlaces({
+    required String diwaniyaId,
+    String? category,
+  }) async {
+    final d = _normalizedRequiredId(
+      diwaniyaId,
+      'معرّف الديوانية',
+    );
+    final response = await ApiClient.get(
+      Endpoints.marketplacePlaces(
+        diwaniyaId: d,
+        category: category,
+      ),
+    );
+    return _expectMap(response, 'DiwaniyaApi.searchMarketplacePlaces');
+  }
+
   static Map<String, dynamic> _expectMap(dynamic response, String endpoint) {
     if (response is Map<String, dynamic>) return response;
     throw ApiException(

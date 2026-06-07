@@ -34,6 +34,20 @@ abstract final class Endpoints {
   static String geoDistricts(String cityId) => '/api/geo/cities/$cityId/districts';
   static String diwaniyaLocation(String id) => '/diwaniyas/$id/location';
 
+  static String marketplacePlaces({
+    required String diwaniyaId,
+    String? category,
+  }) {
+    final params = <String, String>{'diwaniya_id': diwaniyaId};
+    final cleanCategory = category?.trim();
+    if (cleanCategory != null && cleanCategory.isNotEmpty) {
+      params['category'] = cleanCategory;
+    }
+    final query = Uri(queryParameters: params).query;
+    return '/api/marketplace/places?$query';
+  }
+
+
   // ── Diwaniyas ──
   static const String diwaniyas = '/diwaniyas';
   static String diwaniya(String id) => '/diwaniyas/$id';

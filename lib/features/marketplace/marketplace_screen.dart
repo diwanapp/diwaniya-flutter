@@ -24,26 +24,91 @@ class MarketplaceScreen extends StatefulWidget {
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final _searchCtrl = TextEditingController();
   MarketplaceFilter _filter = const MarketplaceFilter();
+  List<Store> _liveStores = const <Store>[];
+  bool _loadingPlaces = false;
+  String? _placesMessage;
+  String? _placesLocationLabel;
 
   @override
   void initState() {
     super.initState();
+    MarketplaceService.configureResolver(() => _liveStores);
     dataVersion.addListener(_handleDataRefresh);
+    Future<void>.microtask(_loadMarketplacePlaces);
   }
 
   @override
   void dispose() {
     dataVersion.removeListener(_handleDataRefresh);
+    MarketplaceService.configureResolver(null);
     _searchCtrl.dispose();
     super.dispose();
   }
 
   void _handleDataRefresh() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    _loadMarketplacePlaces();
   }
 
   void _updateFilter(MarketplaceFilter Function(MarketplaceFilter) update) {
     setState(() => _filter = update(_filter));
+  }
+
+  Future<void> _loadMarketplacePlaces({String? category}) async {
+    final active = _activeDiwaniya;
+    if (active == null || active.id.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _liveStores = const <Store>[];
+        _placesMessage = 'no_diwaniya_selected';
+        _placesLocationLabel = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingPlaces = true;
+      _placesMessage = null;
+    });
+
+    try {
+      final result = await MarketplaceService.loadBackendPlaces(
+        diwaniyaId: active.id,
+        category: category ?? _filter.selectedCategory,
+      );
+      if (!mounted) return;
+      setState(() {
+        _liveStores = result.stores;
+        _placesMessage = result.message;
+        _placesLocationLabel = result.locationLabel;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _liveStores = const <Store>[];
+        _placesMessage = 'marketplace_connection_error';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingPlaces = false);
+      }
+    }
+  }
+
+  String? _placesNoticeText() {
+    switch (_placesMessage) {
+      case 'google_places_not_configured':
+        return 'سيتم عرض المحلات القريبة هنا بعد تفعيل الربط مع Google Places.';
+      case 'location_missing':
+        return 'حدد موقع الديوانية بدقة من تفاصيل الديوانية لعرض المحلات القريبة.';
+      case 'no_diwaniya_selected':
+        return 'اختر ديوانية أولًا لعرض السوق المرتبط بها.';
+      case 'marketplace_connection_error':
+        return 'تعذر تحديث السوق الآن. تحقق من الاتصال وحاول مرة أخرى.';
+      default:
+        return null;
+    }
   }
 
   DiwaniyaInfo? get _activeDiwaniya {
@@ -105,7 +170,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final c = context.cl;
     final isFiltering = _filter.isActive;
     final active = _activeDiwaniya;
-    final locationLabel = _locationLabelFor(active);
+    final locationLabel = _placesLocationLabel ?? _locationLabelFor(active);
+    final placesNoticeText = _placesNoticeText();
 
     final hasResults = isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty;
 
@@ -158,6 +224,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     locationLabel: locationLabel,
                   ),
                   const SizedBox(height: 12),
+                  if (_loadingPlaces) ...[
+                    LinearProgressIndicator(
+                      minHeight: 3,
+                      color: c.accent,
+                      backgroundColor: c.border.withValues(alpha: 0.10),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (placesNoticeText != null) ...[
+                    _MarketplaceBackendNotice(message: placesNoticeText),
+                    const SizedBox(height: 12),
+                  ],
                   Row(
                     children: [
                       AppChip(
@@ -206,9 +284,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   const SizedBox(height: 12),
                   MarketplaceCategoryList(
                     selectedCategory: _filter.selectedCategory,
-                    onCategoryChanged: (cat) => _updateFilter(
-                      (f) => f.copyWith(selectedCategory: () => cat),
-                    ),
+                    onCategoryChanged: (cat) {
+                      _updateFilter(
+                        (f) => f.copyWith(selectedCategory: () => cat),
+                      );
+                      _loadMarketplacePlaces(category: cat);
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -366,6 +447,50 @@ class _MarketplaceLocationBrief extends StatelessWidget {
                 color: c.accent,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MarketplaceBackendNotice extends StatelessWidget {
+  final String message;
+
+  const _MarketplaceBackendNotice({
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: c.accent.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.accent.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: c.accent,
+            size: 19,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: c.t2,
+                fontSize: 12.4,
+                height: 1.45,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
