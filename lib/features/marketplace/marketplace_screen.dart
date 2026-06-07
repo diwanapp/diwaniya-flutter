@@ -28,6 +28,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   bool _loadingPlaces = false;
   String? _placesMessage;
   String? _placesLocationLabel;
+  String? _lastPlacesRequestKey;
+  DateTime? _lastPlacesRequestAt;
 
   @override
   void initState() {
@@ -56,6 +58,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _loadMarketplacePlaces({String? category}) async {
+    final requestCategory = category ?? _filter.selectedCategory;
     final active = _activeDiwaniya;
     if (active == null || active.id.trim().isEmpty) {
       if (!mounted) return;
@@ -67,20 +70,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       return;
     }
 
+    final requestKey = '${active.id}|${requestCategory ?? 'all'}';
+    final now = DateTime.now();
+    final lastAt = _lastPlacesRequestAt;
+    if (_lastPlacesRequestKey == requestKey &&
+        lastAt != null &&
+        now.difference(lastAt).inSeconds < 3) {
+      return;
+    }
+
+    _lastPlacesRequestKey = requestKey;
+    _lastPlacesRequestAt = now;
+
     setState(() {
       _loadingPlaces = true;
-      _placesMessage = null;
     });
 
     try {
       final result = await MarketplaceService.loadBackendPlaces(
         diwaniyaId: active.id,
-        category: category ?? _filter.selectedCategory,
+        category: requestCategory,
       );
       if (!mounted) return;
       setState(() {
         _liveStores = result.stores;
-        _placesMessage = result.message;
+        _placesMessage = result.message ??
+            (result.isConfigured && result.stores.isEmpty
+                ? 'no_nearby_results'
+                : null);
         _placesLocationLabel = result.locationLabel;
       });
     } catch (_) {
@@ -106,6 +123,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         return 'اختر ديوانية أولًا لعرض السوق المرتبط بها.';
       case 'marketplace_connection_error':
         return 'تعذر تحديث السوق الآن. تحقق من الاتصال وحاول مرة أخرى.';
+      case 'no_nearby_results':
+        return 'لا توجد نتائج قريبة ضمن 10 كم لهذا التصنيف.';
       default:
         return null;
     }
@@ -170,10 +189,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final c = context.cl;
     final isFiltering = _filter.isActive;
     final active = _activeDiwaniya;
-    final locationLabel = _placesLocationLabel ?? _locationLabelFor(active);
+    final locationLabel = _locationLabelFor(active) ?? _placesLocationLabel;
     final placesNoticeText = _placesNoticeText();
 
-    final hasResults = isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty;
+    final hasResults = _loadingPlaces
+        ? (_liveStores.isNotEmpty || _allStores.isNotEmpty)
+        : (isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty);
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -224,14 +245,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     locationLabel: locationLabel,
                   ),
                   const SizedBox(height: 12),
-                  if (_loadingPlaces) ...[
-                    LinearProgressIndicator(
-                      minHeight: 3,
-                      color: c.accent,
-                      backgroundColor: c.border.withValues(alpha: 0.10),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
                   if (placesNoticeText != null) ...[
                     _MarketplaceBackendNotice(message: placesNoticeText),
                     const SizedBox(height: 12),

@@ -171,6 +171,7 @@ class MarketplaceService {
     final coords = _locationParts(locationLabel);
     final ratingRaw = json['rating'];
     final reviewRaw = json['user_rating_count'];
+    final distanceRaw = json['distance_km'];
     final openRaw = json['is_open_now'];
 
     return Store(
@@ -181,8 +182,11 @@ class MarketplaceService {
       district: coords.$1,
       rating: ratingRaw is num ? ratingRaw.toDouble() : 0,
       reviewCount: reviewRaw is num ? reviewRaw.toInt() : 0,
-      distanceKm: 0,
+      distanceKm: distanceRaw is num ? distanceRaw.toDouble() : 0,
       isOpenNow: openRaw == true,
+      mapUrl: (json['map_url'] as String?)?.trim().isNotEmpty == true
+          ? (json['map_url'] as String).trim()
+          : null,
       description: (json['address'] ?? '').toString(),
       tags: <String>[
         category,

@@ -8,6 +8,24 @@ import '../models/store_model.dart';
 import 'store_badges.dart';
 import 'offer_chip.dart';
 
+String _ratingText(Store store) {
+  if (store.rating <= 0) return 'جديد';
+  return store.rating.toStringAsFixed(1);
+}
+
+String _reviewText(Store store) {
+  if (store.reviewCount <= 0) return '';
+  return ' (${store.reviewCount})';
+}
+
+String _distanceText(Store store) {
+  if (store.distanceKm <= 0) return 'قريب';
+  if (store.distanceKm < 1) {
+    return '${(store.distanceKm * 1000).round()} م';
+  }
+  return '${store.distanceKm.toStringAsFixed(1)} كم';
+}
+
 class StoreCard extends StatelessWidget {
   final Store store;
   final bool compact;
@@ -58,13 +76,30 @@ class StoreCard extends StatelessWidget {
             Row(children: [
               Icon(Icons.star_rounded, size: 14, color: c.warning),
               const SizedBox(width: 3),
-              Text('${store.rating}',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.t1)),
-              Text(' (${store.reviewCount})', style: TextStyle(fontSize: 10, color: c.t3)),
+              Text(
+                _ratingText(store),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: c.t1,
+                ),
+              ),
+              if (_reviewText(store).isNotEmpty)
+                Text(
+                  _reviewText(store),
+                  style: TextStyle(fontSize: 10, color: c.t3),
+                ),
               const SizedBox(width: 12),
               Icon(Icons.place_rounded, size: 13, color: c.t3),
               const SizedBox(width: 2),
-              Text('${store.distanceKm} ${Ar.km}', style: TextStyle(fontSize: 11, color: c.t3)),
+              Text(
+                _distanceText(store),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: c.t3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               if (store.deliveryEtaText != null) ...[
                 const SizedBox(width: 8),
                 Icon(Icons.schedule_rounded, size: 13, color: c.t3),
