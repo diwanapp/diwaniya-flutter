@@ -48,6 +48,21 @@ abstract final class Endpoints {
   }
 
 
+  static String marketplaceAds({
+    required String diwaniyaId,
+    required String placementScreen,
+    int limit = 5,
+  }) {
+    final params = <String, String>{
+      'diwaniya_id': diwaniyaId,
+      'placement_screen': placementScreen,
+      'limit': limit.toString(),
+    };
+    final query = Uri(queryParameters: params).query;
+    return '/api/marketplace/ads?$query';
+  }
+
+
   // ── Diwaniyas ──
   static const String diwaniyas = '/diwaniyas';
   static String diwaniya(String id) => '/diwaniyas/$id';

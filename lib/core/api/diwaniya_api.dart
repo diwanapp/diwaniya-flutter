@@ -285,6 +285,22 @@ class DiwaniyaApi {
     return _expectMap(response, 'DiwaniyaApi.searchMarketplacePlaces');
   }
 
+
+  static Future<Map<String, dynamic>> loadMarketplaceAds({
+    required String diwaniyaId,
+    required String placementScreen,
+    int limit = 5,
+  }) async {
+    final response = await ApiClient.get(
+      Endpoints.marketplaceAds(
+        diwaniyaId: diwaniyaId,
+        placementScreen: placementScreen,
+        limit: limit,
+      ),
+    );
+    return _expectMap(response, 'DiwaniyaApi.loadMarketplaceAds');
+  }
+
   static Map<String, dynamic> _expectMap(dynamic response, String endpoint) {
     if (response is Map<String, dynamic>) return response;
     throw ApiException(

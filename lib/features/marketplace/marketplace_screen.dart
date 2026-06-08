@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 
+
 import '../../config/theme/app_colors.dart';
 import '../../core/models/mock_data.dart';
 import '../../l10n/ar.dart';
 import '../../shared/widgets/app_chip.dart';
 import '../../shared/widgets/app_search_field.dart';
 import 'models/marketplace_filter_model.dart';
+import 'models/marketplace_ad_model.dart';
 import 'models/store_model.dart';
 import 'services/marketplace_service.dart';
 import 'widgets/empty_marketplace_state.dart';
+import 'widgets/marketplace_ads_banner.dart';
 import 'widgets/marketplace_banner_carousel.dart';
 import 'widgets/marketplace_category_list.dart';
 import 'widgets/marketplace_section_header.dart';
@@ -26,6 +29,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   MarketplaceFilter _filter = const MarketplaceFilter();
   List<Store> _liveStores = const <Store>[];
   bool _loadingPlaces = false;
+  List<MarketplaceAd> _marketplaceAds = const <MarketplaceAd>[];
   String? _placesMessage;
   String? _placesLocationLabel;
   String? _lastPlacesRequestKey;
@@ -37,6 +41,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     MarketplaceService.configureResolver(() => _liveStores);
     dataVersion.addListener(_handleDataRefresh);
     Future<void>.microtask(_loadMarketplacePlaces);
+    Future<void>.microtask(_loadMarketplaceAds);
   }
 
   @override
@@ -55,6 +60,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _updateFilter(MarketplaceFilter Function(MarketplaceFilter) update) {
     setState(() => _filter = update(_filter));
+  }
+
+  Future<void> _loadMarketplaceAds() async {
+    final active = _activeDiwaniya;
+    if (active == null) {
+      if (mounted) setState(() => _marketplaceAds = const <MarketplaceAd>[]);
+      return;
+    }
+
+    try {
+      final result = await MarketplaceService.loadApprovedAds(
+        diwaniyaId: active.id,
+        placementScreen: 'marketplace',
+        limit: 3,
+      );
+
+      if (!mounted) return;
+      setState(() => _marketplaceAds = result.ads);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _marketplaceAds = const <MarketplaceAd>[]);
+    }
   }
 
   Future<void> _loadMarketplacePlaces({String? category}) async {
@@ -245,6 +272,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     locationLabel: locationLabel,
                   ),
                   const SizedBox(height: 12),
+                  MarketplaceAdsBanner(ads: _marketplaceAds),
                   if (placesNoticeText != null) ...[
                     _MarketplaceBackendNotice(message: placesNoticeText),
                     const SizedBox(height: 12),

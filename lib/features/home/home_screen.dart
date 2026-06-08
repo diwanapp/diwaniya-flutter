@@ -32,6 +32,7 @@ import 'widgets/home_header_section.dart';
 import 'widgets/home_stats_section.dart';
 import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
+import 'widgets/home_ad_banner.dart';
 import 'widgets/home_handle.dart';
 import 'widgets/home_poll_banner.dart';
 import 'widgets/home_calendar_section.dart';
@@ -1681,6 +1682,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onDelete: _deleteCalendarEvent,
                     ),
                     const SizedBox(height: 16),
+                    HomeAdBanner(diwaniyaId: _diwaniyaId),
                     HomeQuickActionsSection(
                       onAddExpense: () => context.go(AppRoutes.expenses),
                       onCreatePoll: _openCreatePoll,

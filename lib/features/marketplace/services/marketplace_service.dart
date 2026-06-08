@@ -2,10 +2,23 @@ import 'package:flutter/material.dart';
 import '../../../core/api/diwaniya_api.dart';
 import '../data/marketplace_mock_data.dart';
 import '../models/marketplace_filter_model.dart';
+import '../models/marketplace_ad_model.dart';
 import '../models/store_model.dart';
 
 typedef MarketplaceSourceResolver = List<Store> Function();
 
+
+class MarketplaceAdsLoadResult {
+  final String? message;
+  final String placementScreen;
+  final List<MarketplaceAd> ads;
+
+  const MarketplaceAdsLoadResult({
+    required this.ads,
+    required this.placementScreen,
+    this.message,
+  });
+}
 
 class MarketplaceLoadResult {
   final List<Store> stores;
@@ -116,6 +129,33 @@ class MarketplaceService {
         break;
     }
     return list;
+  }
+
+  static Future<MarketplaceAdsLoadResult> loadApprovedAds({
+    required String diwaniyaId,
+    required String placementScreen,
+    int limit = 5,
+  }) async {
+    final response = await DiwaniyaApi.loadMarketplaceAds(
+      diwaniyaId: diwaniyaId,
+      placementScreen: placementScreen,
+      limit: limit,
+    );
+
+    final rawAds = response['ads'];
+    final ads = rawAds is List
+        ? rawAds
+            .whereType<Map>()
+            .map((e) => MarketplaceAd.fromJson(Map<String, dynamic>.from(e)))
+            .where((ad) => ad.id.isNotEmpty && ad.title.trim().isNotEmpty)
+            .toList(growable: false)
+        : <MarketplaceAd>[];
+
+    return MarketplaceAdsLoadResult(
+      ads: ads,
+      placementScreen: (response['placement_screen'] as String?) ?? placementScreen,
+      message: ads.isEmpty ? 'no_approved_ads' : null,
+    );
   }
 
   static Future<MarketplaceLoadResult> loadBackendPlaces({
