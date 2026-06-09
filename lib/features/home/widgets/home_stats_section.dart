@@ -1,406 +1,372 @@
 import 'package:flutter/material.dart';
 
-import '../../../config/theme/app_colors.dart';
-
-class HomeStatsSection extends StatelessWidget {
-  final int memberCount;
-  final String balanceStr;
-  final Color balanceColor;
-  final int activePolls;
-  final int maqadiNeeded;
-  final String chatPreview;
-  final String chatSender;
-  final int chatUnread;
-  final int albumCount;
-  final VoidCallback onOpenMembers;
-  final VoidCallback onOpenBalances;
-  final VoidCallback onOpenPolls;
-  final VoidCallback onOpenMaqadi;
-  final VoidCallback onOpenChat;
-  final VoidCallback onOpenAlbum;
-  final bool showChatOverview;
-
-  const HomeStatsSection({
+class HomeChatOverviewCard extends StatelessWidget {
+  const HomeChatOverviewCard({
     super.key,
-    required this.memberCount,
-    required this.balanceStr,
-    required this.balanceColor,
-    required this.activePolls,
-    required this.maqadiNeeded,
-    required this.chatPreview,
-    required this.chatSender,
-    required this.chatUnread,
-    required this.onOpenMembers,
-    required this.onOpenBalances,
-    required this.onOpenPolls,
-    required this.onOpenMaqadi,
-    required this.onOpenChat,
-    required this.onOpenAlbum,
-    required this.albumCount,
-    this.showChatOverview = true,
+    required this.preview,
+    required this.sender,
+    required this.unreadCount,
+    this.onTap,
   });
+
+  final String? preview;
+  final String? sender;
+  final int unreadCount;
+  final VoidCallback? onTap;
+
+  static const _navy = Color(0xFF101923);
+  static const _green = Color(0xFF8DD6A5);
+  static const _textSoft = Color(0xFFC9D0D4);
 
   @override
   Widget build(BuildContext context) {
-    const maqadiAccent = Color(0xFFD9B56D); // Sand gold
-    const balanceAccent = Color(0xFF7FAE8A); // Sage green
-    const pollAccent = Color(0xFFC98745); // Desert amber
-    const albumAccent = Color(0xFF9F4D4D); // Muted burgundy
-    const membersAccent = Color(0xFF6EA6C9); // Calm blue
+    final effectivePreview = (preview == null || preview!.trim().isEmpty)
+        ? 'افتحوا دردشتكم وتابعوا آخر السوالف'
+        : preview!.trim();
+
+    final effectiveSender = (sender == null || sender!.trim().isEmpty)
+        ? 'الدردشة'
+        : sender!.trim();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(26),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(26),
+          child: Ink(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.centerRight,
+                end: Alignment.centerLeft,
+                colors: [
+                  Color(0xFF1B332D),
+                  Color(0xFF101923),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: Color(0x2278D6A2)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x26000000),
+                  blurRadius: 22,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: const Color(0x2278D6A2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.chat_bubble_rounded, color: _green, size: 26),
+                      if (unreadCount > 0)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFD66B75),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'الدردشة',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '$effectiveSender: $effectivePreview',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: _textSoft,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeStatsSection extends StatelessWidget {
+  const HomeStatsSection({
+    super.key,
+    this.showChatOverview = false,
+    this.memberCount = 0,
+    this.balanceStr,
+    this.balanceColor,
+    this.activePolls = 0,
+    this.maqadiNeeded = 0,
+    this.chatPreview,
+    this.chatSender,
+    this.chatUnread = 0,
+    this.albumCount = 0,
+    this.onOpenMembers,
+    this.onOpenBalances,
+    this.onOpenPolls,
+    this.onOpenMaqadi,
+    this.onOpenChat,
+    this.onOpenAlbum,
+    this.balanceLabel,
+    this.groceryLabel,
+    this.pollsLabel,
+    this.photosLabel,
+    this.membersLabel,
+    this.onExpensesTap,
+    this.onGroceryTap,
+    this.onPollsTap,
+    this.onPhotosTap,
+    this.onMembersTap,
+  });
+
+  final bool showChatOverview;
+  final int memberCount;
+  final String? balanceStr;
+  final Color? balanceColor;
+  final int activePolls;
+  final int maqadiNeeded;
+  final String? chatPreview;
+  final String? chatSender;
+  final int chatUnread;
+  final int albumCount;
+
+  final VoidCallback? onOpenMembers;
+  final VoidCallback? onOpenBalances;
+  final VoidCallback? onOpenPolls;
+  final VoidCallback? onOpenMaqadi;
+  final VoidCallback? onOpenChat;
+  final VoidCallback? onOpenAlbum;
+
+  // Backward-compatible aliases.
+  final String? balanceLabel;
+  final String? groceryLabel;
+  final String? pollsLabel;
+  final String? photosLabel;
+  final String? membersLabel;
+  final VoidCallback? onExpensesTap;
+  final VoidCallback? onGroceryTap;
+  final VoidCallback? onPollsTap;
+  final VoidCallback? onPhotosTap;
+  final VoidCallback? onMembersTap;
+
+  static const _border = Color(0x1FFFFFFF);
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedBalance = balanceLabel ?? balanceStr ?? '0+ رس';
+    final resolvedBalanceColor = balanceColor ?? const Color(0xFF70C89B);
+    final resolvedGrocery = groceryLabel ?? '$maqadiNeeded ناقص';
+    final resolvedPolls = pollsLabel ?? '$activePolls';
+    final resolvedPhotos = photosLabel ?? '$albumCount صور';
+    final resolvedMembers = membersLabel ?? '$memberCount أعضاء';
 
     return Column(
       children: [
-        if (showChatOverview) ...[
+        if (showChatOverview)
           HomeChatOverviewCard(
             preview: chatPreview,
             sender: chatSender,
             unreadCount: chatUnread,
             onTap: onOpenChat,
           ),
-          const SizedBox(height: 14),
-        ],
-        Row(
-          children: [
-            Expanded(
-              child: _SoftMetricTile(
-                title: 'الرصيد',
-                value: '$balanceStr ر.س',
-                icon: Icons.account_balance_wallet_rounded,
-                accent: balanceAccent,
-                onTap: onOpenBalances,
+        Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1722),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 24,
+                offset: Offset(0, 12),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _SoftMetricTile(
-                title: 'المقاضي الناقصة',
-                value: '$maqadiNeeded ناقص',
-                icon: Icons.shopping_cart_rounded,
-                accent: maqadiAccent,
-                onTap: onOpenMaqadi,
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _MetricCard(
+                      label: 'الرصيد',
+                      value: resolvedBalance,
+                      icon: Icons.account_balance_wallet_rounded,
+                      accent: resolvedBalanceColor,
+                      onTap: onOpenBalances ?? onExpensesTap,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MetricCard(
+                      label: 'المقاضي الناقصة',
+                      value: resolvedGrocery,
+                      icon: Icons.shopping_cart_rounded,
+                      accent: const Color(0xFFD6B56D),
+                      onTap: onOpenMaqadi ?? onGroceryTap,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _SoftMetricTile(
-                title: 'الألبوم',
-                value: albumCount == 0 ? 'لا توجد صور' : '$albumCount صور',
-                icon: Icons.image_rounded,
-                accent: albumAccent,
-                onTap: onOpenAlbum,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _MetricCard(
+                      label: 'التصويتات القائمة',
+                      value: resolvedPolls,
+                      icon: Icons.how_to_vote_rounded,
+                      accent: const Color(0xFFCB8A48),
+                      onTap: onOpenPolls ?? onPollsTap,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _MetricCard(
+                      label: 'الألبوم',
+                      value: resolvedPhotos,
+                      icon: Icons.photo_rounded,
+                      accent: const Color(0xFFD66B75),
+                      onTap: onOpenAlbum ?? onPhotosTap,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _SoftMetricTile(
-                title: 'التصويتات القائمة',
-                value: '$activePolls',
-                icon: Icons.how_to_vote_rounded,
-                accent: pollAccent,
-                onTap: onOpenPolls,
+              const SizedBox(height: 12),
+              _MembersBar(
+                label: resolvedMembers,
+                onTap: onOpenMembers ?? onMembersTap,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        _MembersSummaryTile(
-          count: memberCount,
-          accent: membersAccent,
-          onTap: onOpenMembers,
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-class HomeChatOverviewCard extends StatelessWidget {
-  final String preview;
-  final String sender;
-  final int unreadCount;
-  final VoidCallback onTap;
-
-  const HomeChatOverviewCard({
-    super.key,
-    required this.preview,
-    required this.sender,
-    required this.unreadCount,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    const chatAccent = Color(0xFF84B894);
-
-    final cleanSender = sender.trim();
-    final cleanPreview = preview.trim();
-    final line = cleanPreview.isEmpty
-        ? 'لا توجد رسائل جديدة'
-        : cleanSender.isEmpty
-            ? cleanPreview
-            : '$cleanSender: $cleanPreview';
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [
-                    chatAccent.withValues(alpha: 0.125),
-                    c.card.withValues(alpha: 0.42),
-                    chatAccent.withValues(alpha: 0.045),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: chatAccent.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Row(
-                textDirection: TextDirection.rtl,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const _SoftIconBadge(
-                    icon: Icons.chat_bubble_rounded,
-                    accent: chatAccent,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'الدردشة',
-                          textAlign: TextAlign.right,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: c.t1,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          line,
-                          textAlign: TextAlign.right,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: c.t2,
-                            fontSize: 13.6,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (unreadCount > 0)
-              PositionedDirectional(
-                top: 12,
-                end: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 9,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: chatAccent.withValues(alpha: 0.20),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: chatAccent.withValues(alpha: 0.18),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: chatAccent.withValues(alpha: 0.10),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    '$unreadCount جديد',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: chatAccent,
-                      fontSize: 11.8,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SoftMetricTile extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _SoftMetricTile({
-    required this.title,
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.label,
     required this.value,
     required this.icon,
     required this.accent,
-    required this.onTap,
+    this.onTap,
   });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cl;
-
     return Material(
       color: Colors.transparent,
+      borderRadius: BorderRadius.circular(24),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
         onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 128),
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 16, 15),
+        borderRadius: BorderRadius.circular(24),
+        child: Ink(
+          height: 166,
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,
-              end: Alignment.bottomRight,
+              end: Alignment.bottomLeft,
               colors: [
-                accent.withValues(alpha: 0.115),
-                c.card.withValues(alpha: 0.24),
-                accent.withValues(alpha: 0.035),
+                Color.lerp(const Color(0xFF151F2A), accent, .08)!,
+                const Color(0xFF111A24),
               ],
             ),
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: _SoftIconBadge(
-                  icon: icon,
-                  accent: accent,
-                  compact: true,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                value,
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 21.5,
-                  fontWeight: FontWeight.w900,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                title,
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: c.t2,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: accent.withValues(alpha: .12)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 18,
+                offset: Offset(0, 10),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MembersSummaryTile extends StatelessWidget {
-  final int count;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _MembersSummaryTile({
-    required this.count,
-    required this.accent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          height: 58,
-          padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 14, 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-              colors: [
-                accent.withValues(alpha: 0.105),
-                c.card.withValues(alpha: 0.22),
-                c.card.withValues(alpha: 0.14),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            textDirection: TextDirection.rtl,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _SoftIconBadge(
-                icon: Icons.groups_rounded,
-                accent: accent,
-                compact: true,
-              ),
-              const SizedBox(width: 11),
-              Text(
-                '$count أعضاء',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: c.t1,
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w900,
-                  height: 1.1,
+              Align(
+                alignment: Alignment.topRight,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: .14),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: accent, size: 22),
                 ),
               ),
               const Spacer(),
-              Icon(
-                Icons.chevron_left_rounded,
-                color: c.t3,
-                size: 23,
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Color(0xFF9EA8AE),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -410,33 +376,65 @@ class _MembersSummaryTile extends StatelessWidget {
   }
 }
 
-class _SoftIconBadge extends StatelessWidget {
-  final IconData icon;
-  final Color accent;
-  final bool compact;
-
-  const _SoftIconBadge({
-    required this.icon,
-    required this.accent,
-    this.compact = false,
+class _MembersBar extends StatelessWidget {
+  const _MembersBar({
+    required this.label,
+    this.onTap,
   });
+
+  final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final size = compact ? 44.0 : 58.0;
-    final iconSize = compact ? 21.0 : 27.0;
+    const accent = Color(0xFF7BA7D9);
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(compact ? 15 : 19),
-      ),
-      child: Icon(
-        icon,
-        color: accent,
-        size: iconSize,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [
+                Color(0xFF152637),
+                Color(0xFF101923),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Color(0x1FFFFFFF)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.chevron_left_rounded, color: Color(0xFF9EA8AE)),
+              const Spacer(),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .16),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.groups_rounded, color: accent),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
