@@ -17,6 +17,12 @@ class HomeQuickActionsSection extends StatelessWidget {
     required this.onCapturePhoto,
   });
 
+
+  static const _maqadiGold = Color(0xFFD6A13F);
+  static const _expenseGreen = Color(0xFF006C35);
+  static const _pollFire = Color(0xFFF28C38);
+  static const _albumLavender = Color(0xFFA477E8);
+
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
@@ -39,7 +45,7 @@ class HomeQuickActionsSection extends StatelessWidget {
               child: _QuickTile(
                 icon: Icons.add_shopping_cart_rounded,
                 label: 'مقاضي',
-                color: c.warning,
+                accent: _maqadiGold,
                 onTap: onAddMaqadi,
               ),
             ),
@@ -48,7 +54,7 @@ class HomeQuickActionsSection extends StatelessWidget {
               child: _QuickTile(
                 icon: Icons.add_card_rounded,
                 label: 'مصروف',
-                color: c.success,
+                accent: _expenseGreen,
                 onTap: onAddExpense,
               ),
             ),
@@ -57,7 +63,7 @@ class HomeQuickActionsSection extends StatelessWidget {
               child: _QuickTile(
                 icon: Icons.how_to_vote_rounded,
                 label: 'تصويت',
-                color: const Color(0xFF60A5FA),
+                accent: _pollFire,
                 onTap: onCreatePoll,
               ),
             ),
@@ -66,7 +72,7 @@ class HomeQuickActionsSection extends StatelessWidget {
               child: _QuickTile(
                 icon: Icons.camera_alt_rounded,
                 label: 'صورة',
-                color: c.error,
+                accent: _albumLavender,
                 onTap: onCapturePhoto,
               ),
             ),
@@ -80,15 +86,16 @@ class HomeQuickActionsSection extends StatelessWidget {
 class _QuickTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final Color accent;
   final VoidCallback? onTap;
 
   const _QuickTile({
     required this.icon,
     required this.label,
-    required this.color,
+    required this.accent,
     required this.onTap,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -101,14 +108,30 @@ class _QuickTile extends StatelessWidget {
         height: 66,
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.060),
+          gradient: LinearGradient(
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: [
+              Color.lerp(const Color(0xFF10263A), accent, .22)!,
+              Color.lerp(const Color(0xFF071321), accent, .10)!,
+            ],
+          ),
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: color.withValues(alpha: 0.09)),
+          border: Border.all(
+            color: accent.withValues(alpha: .20),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: .06),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: color),
+            Icon(icon, size: 20, color: accent),
             const SizedBox(height: 6),
             Text(
               label,

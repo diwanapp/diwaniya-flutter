@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 class HomeChatOverviewCard extends StatelessWidget {
   const HomeChatOverviewCard({
     super.key,
-    required this.preview,
-    required this.sender,
-    required this.unreadCount,
+    this.preview,
+    this.sender,
+    this.unreadCount = 0,
     this.onTap,
   });
 
@@ -14,109 +14,113 @@ class HomeChatOverviewCard extends StatelessWidget {
   final int unreadCount;
   final VoidCallback? onTap;
 
-  static const _navy = Color(0xFF101923);
-  static const _green = Color(0xFF8DD6A5);
-  static const _textSoft = Color(0xFFC9D0D4);
+  static const _navy = Color(0xFF10263A);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final effectivePreview = (preview == null || preview!.trim().isEmpty)
-        ? 'افتحوا دردشتكم وتابعوا آخر السوالف'
+        ? 'افتحوا الدردشة وتابعوا آخر السوالف'
         : preview!.trim();
 
     final effectiveSender = (sender == null || sender!.trim().isEmpty)
         ? 'الدردشة'
         : sender!.trim();
 
-    return Container(
-      margin: const EdgeInsets.only(top: 14),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(26),
-        child: InkWell(
-          onTap: onTap,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(top: 14),
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(26),
-          child: Ink(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.centerRight,
-                end: Alignment.centerLeft,
-                colors: [
-                  Color(0xFF1B332D),
-                  Color(0xFF101923),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(26),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: isDark
+                      ? const [
+                          Color(0xFF5B8FCB),
+                          Color(0xFF10263A),
+                          Color(0xFF0B1624),
+                        ]
+                      : const [
+                          Color(0xFFE8F1FA),
+                          Color(0xFFF8EFE2),
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: isDark ? const Color(0x335B8FCB) : const Color(0x22B79A72),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: isDark ? const Color(0x305B8FCB) : const Color(0x18B79A72),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: Color(0x2278D6A2)),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x26000000),
-                  blurRadius: 22,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: const Color(0x2278D6A2),
-                    borderRadius: BorderRadius.circular(20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: isDark
+                            ? const [Color(0x335B8FCB), Color(0x1AFFFFFF)]
+                            : const [Color(0xFFE1F4E6), Color(0xFFFFFFFF)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.chat_bubble_rounded,
+                      color: isDark ? const Color(0xFF8FC3FF) : const Color(0xFF5B8FCB),
+                      size: 27,
+                    ),
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(Icons.chat_bubble_rounded, color: _green, size: 26),
-                      if (unreadCount > 0)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFD66B75),
-                              shape: BoxShape.circle,
-                            ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'الدردشة',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: isDark ? Colors.white : _navy,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text(
-                        'الدردشة',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
+                        const SizedBox(height: 8),
+                        Text(
+                          '$effectiveSender: $effectivePreview',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFE0E7EA) : const Color(0xFF526168),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$effectiveSender: $effectivePreview',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          color: _textSoft,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -174,111 +178,120 @@ class HomeStatsSection extends StatelessWidget {
   final VoidCallback? onOpenChat;
   final VoidCallback? onOpenAlbum;
 
-  // Backward-compatible aliases.
   final String? balanceLabel;
   final String? groceryLabel;
   final String? pollsLabel;
   final String? photosLabel;
   final String? membersLabel;
+
   final VoidCallback? onExpensesTap;
   final VoidCallback? onGroceryTap;
   final VoidCallback? onPollsTap;
   final VoidCallback? onPhotosTap;
   final VoidCallback? onMembersTap;
 
-  static const _border = Color(0x1FFFFFFF);
+  static const _saudiGreen = Color(0xFF006C35);
+  static const _oudRed = Color(0xFF8A3A44);
+  static const _desertGold = Color(0xFFD6A13F);
+  static const _fireOrange = Color(0xFFF28C38);
+  static const _lavender = Color(0xFFA477E8);
+  static const _royalBlue = Color(0xFF5B8FCB);
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final resolvedBalance = balanceLabel ?? balanceStr ?? '0+ رس';
-    final resolvedBalanceColor = balanceColor ?? const Color(0xFF70C89B);
+    final isNegativeBalance = resolvedBalance.trim().startsWith('-');
+    final resolvedBalanceColor =
+        balanceColor ?? (isNegativeBalance ? _oudRed : _saudiGreen);
+
     final resolvedGrocery = groceryLabel ?? '$maqadiNeeded ناقص';
     final resolvedPolls = pollsLabel ?? '$activePolls';
     final resolvedPhotos = photosLabel ?? '$albumCount صور';
     final resolvedMembers = membersLabel ?? '$memberCount أعضاء';
 
-    return Column(
-      children: [
-        if (showChatOverview)
-          HomeChatOverviewCard(
-            preview: chatPreview,
-            sender: chatSender,
-            unreadCount: chatUnread,
-            onTap: onOpenChat,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Column(
+        children: [
+          if (showChatOverview)
+            HomeChatOverviewCard(
+              preview: chatPreview,
+              sender: chatSender,
+              unreadCount: chatUnread,
+              onTap: onOpenChat,
+            ),
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'المقاضي الناقصة',
+                        value: resolvedGrocery,
+                        icon: Icons.shopping_cart_rounded,
+                        accent: _desertGold,
+                        isDark: isDark,
+                        onTap: onOpenMaqadi ?? onGroceryTap,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'الرصيد',
+                        value: resolvedBalance,
+                        icon: Icons.account_balance_wallet_rounded,
+                        accent: resolvedBalanceColor,
+                        isDark: isDark,
+                        onTap: onOpenBalances ?? onExpensesTap,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'الألبوم',
+                        value: resolvedPhotos,
+                        icon: Icons.photo_rounded,
+                        accent: _lavender,
+                        isDark: isDark,
+                        onTap: onOpenAlbum ?? onPhotosTap,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'التصويتات القائمة',
+                        value: resolvedPolls,
+                        icon: Icons.how_to_vote_rounded,
+                        accent: _fireOrange,
+                        isDark: isDark,
+                        onTap: onOpenPolls ?? onPollsTap,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _MembersBar(
+                  label: resolvedMembers,
+                  isDark: isDark,
+                  accent: _royalBlue,
+                  onTap: onOpenMembers ?? onMembersTap,
+                ),
+              ],
+            ),
           ),
-        Container(
-          margin: const EdgeInsets.only(top: 14),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F1722),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: _border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x33000000),
-                blurRadius: 24,
-                offset: Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'الرصيد',
-                      value: resolvedBalance,
-                      icon: Icons.account_balance_wallet_rounded,
-                      accent: resolvedBalanceColor,
-                      onTap: onOpenBalances ?? onExpensesTap,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'المقاضي الناقصة',
-                      value: resolvedGrocery,
-                      icon: Icons.shopping_cart_rounded,
-                      accent: const Color(0xFFD6B56D),
-                      onTap: onOpenMaqadi ?? onGroceryTap,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'التصويتات القائمة',
-                      value: resolvedPolls,
-                      icon: Icons.how_to_vote_rounded,
-                      accent: const Color(0xFFCB8A48),
-                      onTap: onOpenPolls ?? onPollsTap,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'الألبوم',
-                      value: resolvedPhotos,
-                      icon: Icons.photo_rounded,
-                      accent: const Color(0xFFD66B75),
-                      onTap: onOpenAlbum ?? onPhotosTap,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _MembersBar(
-                label: resolvedMembers,
-                onTap: onOpenMembers ?? onMembersTap,
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -289,6 +302,7 @@ class _MetricCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.accent,
+    required this.isDark,
     this.onTap,
   });
 
@@ -296,77 +310,103 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color accent;
+  final bool isDark;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final baseA = isDark ? const Color(0xFF132B3B) : const Color(0xFFFFF7EA);
+    final baseB = isDark ? const Color(0xFF0B1E2C) : const Color(0xFFF2E3CE);
+
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(25),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(25),
         child: Ink(
-          height: 166,
-          padding: const EdgeInsets.all(18),
+          height: 156,
+          padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topRight,
               end: Alignment.bottomLeft,
               colors: [
-                Color.lerp(const Color(0xFF151F2A), accent, .08)!,
-                const Color(0xFF111A24),
+                Color.lerp(baseA, accent, isDark ? .50 : .32)!,
+                Color.lerp(baseB, accent, isDark ? .30 : .18)!,
               ],
             ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: accent.withValues(alpha: .12)),
-            boxShadow: const [
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: accent.withValues(alpha: isDark ? .22 : .18),
+            ),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 18,
-                offset: Offset(0, 10),
+                color: accent.withValues(alpha: isDark ? .10 : .08),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Stack(
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: .14),
-                    borderRadius: BorderRadius.circular(16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [
+                            accent.withValues(alpha: isDark ? .34 : .22),
+                            Colors.white.withValues(alpha: isDark ? .06 : .30),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(17),
+                      ),
+                      child: Icon(icon, color: accent, size: 24),
+                    ),
                   ),
-                  child: Icon(icon, color: accent, size: 22),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  color: Color(0xFF9EA8AE),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+                  const Spacer(),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.visible,
+                      textAlign: TextAlign.right,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.visible,
+                      textAlign: TextAlign.right,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFFE1E7EA) : const Color(0xFF3E4A50),
+                        fontSize: 13.0,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -379,15 +419,20 @@ class _MetricCard extends StatelessWidget {
 class _MembersBar extends StatelessWidget {
   const _MembersBar({
     required this.label,
+    required this.isDark,
+    required this.accent,
     this.onTap,
   });
 
   final String label;
+  final bool isDark;
+  final Color accent;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF7BA7D9);
+    final baseA = isDark ? const Color(0xFF132B3B) : const Color(0xFFFFF7EA);
+    final baseB = isDark ? const Color(0xFF0B1E2C) : const Color(0xFFF2E3CE);
 
     return Material(
       color: Colors.transparent,
@@ -396,41 +441,49 @@ class _MembersBar extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
         child: Ink(
-          height: 64,
+          height: 62,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.centerRight,
               end: Alignment.centerLeft,
               colors: [
-                Color(0xFF152637),
-                Color(0xFF101923),
+                Color.lerp(baseA, accent, isDark ? .50 : .32)!,
+                Color.lerp(baseB, accent, isDark ? .30 : .18)!,
               ],
             ),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Color(0x1FFFFFFF)),
+            border: Border.all(color: accent.withValues(alpha: isDark ? .34 : .22)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.chevron_left_rounded, color: Color(0xFF9EA8AE)),
-              const Spacer(),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: isDark ? .34 : .22),
+                  borderRadius: BorderRadius.circular(17),
                 ),
+                child: Icon(Icons.groups_rounded, color: accent, size: 24),
               ),
               const SizedBox(width: 12),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .16),
-                  borderRadius: BorderRadius.circular(18),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  textDirection: TextDirection.rtl,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF10263A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                child: const Icon(Icons.groups_rounded, color: accent),
+              ),
+              Icon(
+                Icons.chevron_left_rounded,
+                color: isDark ? const Color(0xFFB7C0C6) : const Color(0xFF68747A),
               ),
             ],
           ),
