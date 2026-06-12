@@ -16,10 +16,6 @@ class HomeAdBanner extends StatefulWidget {
 }
 
 class _HomeAdBannerState extends State<HomeAdBanner> {
-  static const _navy = Color(0xFF1F3A4D);
-  static const _card = Color(0xFFFFFBF2);
-  static const _textSoft = Color(0xFF5C6B73);
-
   bool _loading = false;
   MarketplaceAd? _ad;
 
@@ -40,11 +36,11 @@ class _HomeAdBannerState extends State<HomeAdBanner> {
   Future<void> _loadAd() async {
     final did = widget.diwaniyaId?.trim();
     if (did == null || did.isEmpty) {
-      setState(() => _ad = null);
+      if (mounted) setState(() => _ad = null);
       return;
     }
 
-    setState(() => _loading = true);
+    if (mounted) setState(() => _loading = true);
 
     try {
       final result = await MarketplaceService.loadApprovedAds(
@@ -55,7 +51,7 @@ class _HomeAdBannerState extends State<HomeAdBanner> {
 
       if (!mounted) return;
       setState(() {
-        _ad = result.ads.isNotEmpty ? result.ads.first : null;
+        _ad = result.ads.where(_hasDisplayImage).cast<MarketplaceAd?>().firstOrNull;
         _loading = false;
       });
     } catch (_) {
@@ -67,79 +63,67 @@ class _HomeAdBannerState extends State<HomeAdBanner> {
     }
   }
 
+  bool _hasDisplayImage(MarketplaceAd ad) {
+    final imageUrl = ad.imageUrl?.trim();
+    return imageUrl != null && imageUrl.isNotEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading || _ad == null) return const SizedBox.shrink();
 
     final ad = _ad!;
+    final imageUrl = ad.imageUrl?.trim();
+    if (imageUrl == null || imageUrl.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0x33C9A227), _card],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 12, 0, 18),
+      child: Semantics(
+        button: false,
+        image: true,
+        label: 'إعلان',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: AspectRatio(
+            aspectRatio: 16 / 7,
+            child: Image.network(
+              imageUrl,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const _AdImagePlaceholder();
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
         ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x55C9A227)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _navy,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.campaign_rounded, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  ad.storeName?.isNotEmpty == true ? ad.storeName! : 'إعلانك معنا',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _textSoft,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  ad.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: _navy,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (ad.description?.isNotEmpty == true) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    ad.description!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _textSoft,
-                      fontSize: 12,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
       ),
     );
+  }
+}
+
+class _AdImagePlaceholder extends StatelessWidget {
+  const _AdImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(24),
+      ),
+    );
+  }
+}
+
+extension _FirstOrNullExtension<T> on Iterable<T> {
+  T? get firstOrNull {
+    final iterator = this.iterator;
+    if (!iterator.moveNext()) return null;
+    return iterator.current;
   }
 }
