@@ -19,6 +19,8 @@ import '../../core/services/album_service.dart';
 import '../../core/services/notification_preferences_service.dart';
 import '../../core/services/entitlement_service.dart';
 import '../../core/services/paywall_service.dart';
+import '../../core/services/app_marketing_service.dart';
+import '../../core/models/home_marketing_config.dart';
 import '../../core/services/analytics_event_names.dart';
 import '../../core/api/join_request_api.dart';
 import '../../core/api/diwaniya_api.dart';
@@ -33,6 +35,7 @@ import 'widgets/home_stats_section.dart';
 import 'widgets/home_quick_actions_section.dart';
 import 'widgets/home_activity_section.dart';
 import 'widgets/home_ad_banner.dart';
+import 'widgets/diamond_subscription_card.dart';
 import 'widgets/home_handle.dart';
 import 'widgets/home_poll_banner.dart';
 import 'widgets/home_calendar_section.dart';
@@ -54,8 +57,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Dormant placeholder for a future dashboard-controlled upgrade card.
-  final bool _upgradeBannerDismissed = false;
+  HomeMarketingConfig? _homeMarketingConfig;
+  bool _upgradeBannerDismissed = false;
   int _pendingJoinRequestCount = 0;
   bool _isRefreshingHome = false;
   int _refreshGeneration = 0;
@@ -83,6 +86,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _bootstrapHome() async {
     await _refreshHomeData(refreshMemberships: true, showErrors: false);
+    await _syncHomeMarketingConfig();
+  }
+
+  Future<void> _syncHomeMarketingConfig() async {
+    try {
+      final config = await AppMarketingService.fetchHomeMarketingConfig();
+      if (!mounted) return;
+      setState(() => _homeMarketingConfig = config);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _homeMarketingConfig = null);
+    }
   }
 
   Future<void> _refreshHomeData({
@@ -164,8 +179,29 @@ class _HomeScreenState extends State<HomeScreen> {
     return items;
   }
 
-  bool get _showUpgradeBanner =>
-      _hasDiwaniya && !EntitlementService.isPremium && !_upgradeBannerDismissed;
+  HomeUpgradeCardConfig? get _homeUpgradeCard =>
+      _homeMarketingConfig?.upgradeCard;
+
+  bool get _showUpgradeBanner {
+    final card = _homeUpgradeCard;
+    return _hasDiwaniya &&
+        !EntitlementService.isPremium &&
+        !_upgradeBannerDismissed &&
+        card != null &&
+        card.shouldShow;
+  }
+
+  Future<void> _openHomeUpgradeOffer() async {
+    final card = _homeUpgradeCard;
+    await PaywallService.showContextualPaywall(
+      context,
+      trigger: PaywallTrigger.memberLimit,
+      title: card?.displayTitle ?? 'ديوانيتكم تستاهل أكثر',
+      message: card?.displayDescription ??
+          'الباقة الماسية تعطيكم مساحة أكبر ومزايا أكثر',
+      icon: Icons.diamond_rounded,
+    );
+  }
 
   void _snack(String msg) {
     if (!mounted) return;
@@ -1623,10 +1659,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: c.bg,
       body: RefreshIndicator(
-        onRefresh: () => _refreshHomeData(
-          refreshMemberships: true,
-          showErrors: true,
-        ),
+        onRefresh: () async {
+          await _refreshHomeData(
+            refreshMemberships: true,
+            showErrors: true,
+          );
+          await _syncHomeMarketingConfig();
+        },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -1734,6 +1773,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 26),
+                    if (_showUpgradeBanner) ...[
+                      DiamondSubscriptionCard(
+                        title: _homeUpgradeCard?.displayTitle ??
+                            'ديوانيتكم تستاهل أكثر',
+                        description: _homeUpgradeCard?.displayDescription ??
+                            'الباقة الماسية تعطيكم مساحة أكبر ومزايا أكثر',
+                        badgeLine1: 'عرض',
+                        badgeLine2: 'الإطلاق',
+                        offerPercent: '50%',
+                        offerText: 'خصم على الاشتراك السنوي',
+                        buttonText: _homeUpgradeCard?.displayCtaLabel ??
+                            'استفيدوا من العرض',
+                        onPressed: _openHomeUpgradeOffer,
+                        onDismiss: () {
+                          setState(() => _upgradeBannerDismissed = true);
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                    ],
                     HomeActivitySection(
                         activities: _activities
                             .where((a) => !a.type.startsWith('chat'))

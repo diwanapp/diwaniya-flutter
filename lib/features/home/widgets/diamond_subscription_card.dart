@@ -366,56 +366,53 @@ class _TitleLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = title.split(' ');
-    final first = parts.isNotEmpty ? parts.first : title;
-    final rest = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+    final normalizedTitle = title.trim().isEmpty
+        ? 'ديوانيتكم تستاهل أكثر'
+        : title.trim();
 
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        textDirection: TextDirection.rtl,
+    const fixedPrefix = 'ديوانيتكم';
+    final hasDiwaniyaPrefix = normalizedTitle == fixedPrefix ||
+        normalizedTitle.startsWith('$fixedPrefix ');
+
+    final prefixText = hasDiwaniyaPrefix ? fixedPrefix : '';
+    final accentText = hasDiwaniyaPrefix
+        ? normalizedTitle.substring(fixedPrefix.length).trim()
+        : normalizedTitle;
+
+    return Text.rich(
+      TextSpan(
         children: [
-          const Text(
-            'ديوانيتكم ',
-            style: TextStyle(
-              color: _D.warmIvory,
-              fontSize: 29,
-              fontWeight: FontWeight.w900,
-              height: 1.05,
-            ),
-          ),
-          ShaderMask(
-            shaderCallback: (bounds) => const LinearGradient(
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-              colors: [
-                _D.warmIvory,
-                _D.sandTaupeLight,
-                _D.sandTaupe,
-              ],
-            ).createShader(bounds),
-            child: Text(
-              rest.isEmpty ? first : rest,
+          if (prefixText.isNotEmpty)
+            TextSpan(
+              text: accentText.isEmpty ? prefixText : '$prefixText ',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 29,
                 fontWeight: FontWeight.w900,
-                height: 1.05,
-                shadows: [
-                  Shadow(
-                    color: _D.majlisBlueSoft,
-                    blurRadius: 8,
-                  ),
-                ],
               ),
             ),
-          ),
+          if (accentText.isNotEmpty)
+            TextSpan(
+              text: accentText,
+              style: const TextStyle(
+                color: _D.sandTaupeLight,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
         ],
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.rtl,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 28,
+        height: 1.18,
+        letterSpacing: -0.35,
       ),
     );
   }
 }
+
 
 class _OfferBox extends StatelessWidget {
   final String percent;
