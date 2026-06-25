@@ -73,7 +73,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       final result = await MarketplaceService.loadApprovedAds(
         diwaniyaId: active.id,
         placementScreen: 'marketplace',
-        limit: 3,
+        limit: 5,
       );
 
       if (!mounted) return;

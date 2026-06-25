@@ -147,7 +147,7 @@ class MarketplaceService {
         ? rawAds
             .whereType<Map>()
             .map((e) => MarketplaceAd.fromJson(Map<String, dynamic>.from(e)))
-            .where((ad) => ad.id.isNotEmpty && ad.title.trim().isNotEmpty)
+            .where((ad) => ad.isDisplayableForPlacement(placementScreen))
             .toList(growable: false)
         : <MarketplaceAd>[];
 
