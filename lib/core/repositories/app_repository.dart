@@ -319,10 +319,18 @@ class AppRepository {
   }
 
   static Future<void> saveSelectedDiwaniya(String id) async {
-    if (currentDiwaniyaId == id) return;
+    final box = Hive.box(HiveBoxes.session);
+    final storedId = box.get('selectedDiwaniya', defaultValue: '') as String;
+    if (currentDiwaniyaId == id && storedId == id) return;
+
+    final previousId = currentDiwaniyaId;
     currentDiwaniyaId = id;
-    await Hive.box(HiveBoxes.session).put('selectedDiwaniya', id);
-    dataVersion.value++;
+    if (storedId != id) {
+      await box.put('selectedDiwaniya', id);
+    }
+    if (previousId != id || storedId != id) {
+      dataVersion.value++;
+    }
   }
 
   static Future<void> saveAll() async {
