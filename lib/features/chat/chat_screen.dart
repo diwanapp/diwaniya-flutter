@@ -162,6 +162,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _showReadDetails(ChatMessage message) {
+    final future = ChatService.loadReadDetails(message);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final c = sheetContext.cl;
+        return _ReadDetailsSheet(
+          c: c,
+          future: future,
+        );
+      },
+    );
+  }
+
   void _scrollToBottom({bool animate = false}) {
     if (!_scrollCtrl.hasClients) {
       return;
@@ -965,6 +981,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                 message: m,
                                 isMine: isMine,
                                 showName: showName,
+                                onReadDetails:
+                                    isMine ? () => _showReadDetails(m) : null,
                               ),
                             ),
                           ],
@@ -1762,11 +1780,13 @@ class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMine;
   final bool showName;
+  final VoidCallback? onReadDetails;
 
   const _ChatBubble({
     required this.message,
     required this.isMine,
     required this.showName,
+    this.onReadDetails,
   });
 
   TextDirection _messageTextDirection(ChatMessage message) {
@@ -1806,7 +1826,7 @@ class _ChatBubble extends StatelessWidget {
     final hasOtherReaders = otherReaders > 0;
     final color = allRead ? c.accent : c.t3.withValues(alpha: 0.86);
 
-    return Container(
+    final counter = Container(
       margin: const EdgeInsets.only(left: 6),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
@@ -1836,6 +1856,15 @@ class _ChatBubble extends StatelessWidget {
           ],
         ],
       ),
+    );
+
+    final onTap = onReadDetails;
+    if (onTap == null) return counter;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: counter,
     );
   }
 
@@ -1954,6 +1983,231 @@ class _ChatBubble extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadDetailsSheet extends StatelessWidget {
+  final CL c;
+  final Future<ChatMessageReadDetails> future;
+
+  const _ReadDetailsSheet({
+    required this.c,
+    required this.future,
+  });
+
+  String _summary(ChatMessageReadDetails details) {
+    final total = details.memberCount <= 0
+        ? details.receipts.length
+        : details.memberCount;
+    return 'قرأها ${details.readCount} من $total';
+  }
+
+  String _timeText(DateTime value) {
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '${local.year}/${local.month.toString().padLeft(2, '0')}/${local.day.toString().padLeft(2, '0')} · $hour:$minute';
+  }
+
+  String _errorText(Object? error) {
+    if (error is ApiException) return error.message;
+    return 'تعذر تحميل تفاصيل القراءة';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: c.border),
+          boxShadow: [
+            BoxShadow(
+              color: c.shadow,
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: FutureBuilder<ChatMessageReadDetails>(
+          future: future,
+          builder: (context, snapshot) {
+            final details = snapshot.data;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: c.accentMuted,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                        Icons.done_all_rounded,
+                        color: c.accent,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'تفاصيل القراءة',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: c.t1,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            details == null
+                                ? 'وقت القراءة لكل عضو'
+                                : _summary(details),
+                            style: TextStyle(fontSize: 12.5, color: c.t2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                      color: c.t2,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (snapshot.connectionState != ConnectionState.done)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    child: Center(
+                      child: CircularProgressIndicator(color: c.accent),
+                    ),
+                  )
+                else if (snapshot.hasError)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: c.errorM,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _errorText(snapshot.error),
+                      style: TextStyle(color: c.error, height: 1.5),
+                    ),
+                  )
+                else
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.62,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: details!.receipts.length,
+                      separatorBuilder: (_, __) => Divider(
+                        height: 1,
+                        color: c.divider,
+                      ),
+                      itemBuilder: (context, index) {
+                        final receipt = details.receipts[index];
+                        final readAt = receipt.readAt;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: receipt.hasRead
+                                      ? c.successM
+                                      : c.cardElevated,
+                                  borderRadius: BorderRadius.circular(13),
+                                ),
+                                child: Icon(
+                                  receipt.hasRead
+                                      ? Icons.done_all_rounded
+                                      : Icons.schedule_rounded,
+                                  color:
+                                      receipt.hasRead ? c.success : c.t3,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 11),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      receipt.displayName,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: c.t1,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      receipt.hasRead
+                                          ? 'قرأها'
+                                          : 'لم يقرأها بعد',
+                                      style: TextStyle(
+                                        color: receipt.hasRead
+                                            ? c.success
+                                            : c.t3,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (readAt != null)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'وقت القراءة',
+                                      style: TextStyle(
+                                        color: c.t3,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      _timeText(readAt),
+                                      style: TextStyle(
+                                        color: c.t2,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

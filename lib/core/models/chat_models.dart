@@ -230,3 +230,73 @@ class ReplyInfo {
       required this.senderName,
       required this.preview});
 }
+
+class ChatReadReceipt {
+  final String userId;
+  final String displayName;
+  final bool hasRead;
+  final DateTime? readAt;
+
+  const ChatReadReceipt({
+    required this.userId,
+    required this.displayName,
+    required this.hasRead,
+    this.readAt,
+  });
+
+  factory ChatReadReceipt.fromJson(Map<String, dynamic> json) {
+    final rawReadAt = json['readAt'] ?? json['read_at'];
+    return ChatReadReceipt(
+      userId: (json['userId'] ?? json['user_id'] ?? '').toString(),
+      displayName:
+          (json['displayName'] ?? json['display_name'] ?? '').toString(),
+      hasRead: json['hasRead'] == true || json['has_read'] == true,
+      readAt: rawReadAt is String && rawReadAt.trim().isNotEmpty
+          ? DateTime.tryParse(rawReadAt)
+          : null,
+    );
+  }
+}
+
+class ChatMessageReadDetails {
+  final String messageId;
+  final String diwaniyaId;
+  final int memberCount;
+  final int readCount;
+  final List<ChatReadReceipt> receipts;
+
+  const ChatMessageReadDetails({
+    required this.messageId,
+    required this.diwaniyaId,
+    required this.memberCount,
+    required this.readCount,
+    required this.receipts,
+  });
+
+  factory ChatMessageReadDetails.fromJson(Map<String, dynamic> json) {
+    final rawReceipts = json['receipts'];
+    final receipts = rawReceipts is List
+        ? rawReceipts
+            .whereType<Map>()
+            .map((e) => ChatReadReceipt.fromJson(Map<String, dynamic>.from(e)))
+            .toList(growable: false)
+        : const <ChatReadReceipt>[];
+
+    final memberCount = ChatMessage._parseInt(
+      json['memberCount'] ?? json['member_count'],
+      fallback: receipts.length,
+    );
+    final readCount = ChatMessage._parseInt(
+      json['readCount'] ?? json['read_count'],
+      fallback: receipts.where((r) => r.hasRead).length,
+    );
+
+    return ChatMessageReadDetails(
+      messageId: (json['messageId'] ?? json['message_id'] ?? '').toString(),
+      diwaniyaId: (json['diwaniyaId'] ?? json['diwaniya_id'] ?? '').toString(),
+      memberCount: memberCount <= 0 ? receipts.length : memberCount,
+      readCount: readCount < 0 ? 0 : readCount,
+      receipts: receipts,
+    );
+  }
+}

@@ -65,6 +65,8 @@ class ChatService {
       '/diwaniyas/$diwaniyaId/chat/messages/media';
   static String _readEndpoint(String diwaniyaId) =>
       '/diwaniyas/$diwaniyaId/chat/read';
+  static String _readDetailsEndpoint(String diwaniyaId, String messageId) =>
+      '/diwaniyas/$diwaniyaId/chat/messages/$messageId/read-details';
   static String _unreadSummaryEndpoint() => '/me/chat/unread-summary';
 
   static String _resolveUrl(String value) {
@@ -160,6 +162,15 @@ class ChatService {
       if (!unique.contains(name)) unique.add(name);
     }
     return unique;
+  }
+
+  static Future<ChatMessageReadDetails> loadReadDetails(
+    ChatMessage message,
+  ) async {
+    final res = await ApiClient.get(
+      _readDetailsEndpoint(message.diwaniyaId, message.id),
+    );
+    return ChatMessageReadDetails.fromJson(Map<String, dynamic>.from(res));
   }
 
   static List<DiwaniyaMember> mentionCandidates(String query,
