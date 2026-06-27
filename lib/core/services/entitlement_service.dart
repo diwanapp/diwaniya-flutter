@@ -1,7 +1,5 @@
 import '../models/mock_data.dart';
-import '../models/subscription_status.dart';
 import 'album_service.dart';
-import 'subscription_service.dart';
 
 enum LimitStatus { ok, nearLimit, atLimit }
 
@@ -9,15 +7,9 @@ typedef EntitlementResolver = bool Function(String diwaniyaId);
 
 /// Per-diwaniya free vs premium gating.
 ///
-/// A diwaniya is "premium" when its local `SubscriptionStatus` is active
-/// and the plan is `monthly` or `yearly`. Everything else (including the
-/// new `free` plan and `joined` members) is treated as non-premium and
-/// subject to the free-tier limits below.
-///
-/// Subscription data is still resolved through [SubscriptionService] in
-/// this phase. This file is intentionally kept as a narrow entitlement
-/// facade so the production migration can switch the resolver to a
-/// backend-authoritative source without touching UI call sites.
+/// Premium entitlement must come from a server-authoritative resolver.
+/// Without that resolver, paid limits stay locked so a device-side value
+/// cannot grant subscription access.
 class EntitlementService {
   EntitlementService._();
 
@@ -69,13 +61,8 @@ class EntitlementService {
       _premiumCache[diwaniyaId] = result;
       return result;
     }
-    final sub = SubscriptionService.forDiwaniya(diwaniyaId);
-    final result = sub != null &&
-        sub.active &&
-        (sub.plan == SubscriptionPlan.monthly ||
-            sub.plan == SubscriptionPlan.yearly);
-    _premiumCache[diwaniyaId] = result;
-    return result;
+    _premiumCache[diwaniyaId] = false;
+    return false;
   }
 
   // ── Limit getters (for UI display) ──

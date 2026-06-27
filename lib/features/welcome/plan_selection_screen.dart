@@ -1,17 +1,9 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../config/theme/app_colors.dart';
-import '../../core/models/expense_models.dart';
 import '../../core/models/mock_data.dart';
-import '../../core/models/subscription_status.dart';
-import '../../core/repositories/app_repository.dart';
-import '../../core/services/auth_service.dart';
-import '../../core/services/expense_service.dart';
-import '../../core/services/subscription_service.dart';
-import '../../core/services/user_service.dart';
 import '../../l10n/ar.dart';
 
 class PlanSelectionScreen extends StatefulWidget {
@@ -21,163 +13,99 @@ class PlanSelectionScreen extends StatefulWidget {
   State<PlanSelectionScreen> createState() => _PlanSelectionScreenState();
 }
 
+class _LaunchSubscriptionPlan {
+  final String productId;
+  final String title;
+  final String price;
+  final String badge;
+  final int memberLimit;
+
+  const _LaunchSubscriptionPlan({
+    required this.productId,
+    required this.title,
+    required this.price,
+    required this.badge,
+    required this.memberLimit,
+  });
+}
+
+const _launchPlans = <_LaunchSubscriptionPlan>[
+  _LaunchSubscriptionPlan(
+    productId: 'diwaniya_10_members_monthly',
+    title: 'خطة 10 أعضاء',
+    price: '10 ر.س / شهر',
+    badge: 'حتى 10 أعضاء',
+    memberLimit: 10,
+  ),
+  _LaunchSubscriptionPlan(
+    productId: 'diwaniya_20_members_monthly',
+    title: 'خطة 20 عضو',
+    price: '20 ر.س / شهر',
+    badge: 'حتى 20 عضو',
+    memberLimit: 20,
+  ),
+  _LaunchSubscriptionPlan(
+    productId: 'diwaniya_30_members_monthly',
+    title: 'خطة 30 عضو',
+    price: '30 ر.س / شهر',
+    badge: 'حتى 30 عضو',
+    memberLimit: 30,
+  ),
+];
+
 class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
-  SubscriptionPlan _selected = SubscriptionPlan.yearly;
+  String _selectedProductId = _launchPlans.first.productId;
   bool _submitting = false;
 
   String get _paymentLabel {
-    if (Platform.isIOS) return Ar.applePay;
-    return Ar.androidPayEquivalent;
+    if (Platform.isIOS) return 'App Store In-App Purchase';
+    return 'Google Play Billing';
   }
 
-  String get _title => 'ترقية الديوانية';
-
-  String get _subtitle =>
-      'ارفع حدود ديوانيتك واحصل على مزايا أوسع. الترقية تسري على الديوانية الحالية.';
-
-  String get _ctaLabel => 'تأكيد الترقية';
+  _LaunchSubscriptionPlan get _selectedPlan => _launchPlans.firstWhere(
+        (plan) => plan.productId == _selectedProductId,
+        orElse: () => _launchPlans.first,
+      );
 
   Future<void> _confirm() async {
     if (_submitting) return;
     setState(() => _submitting = true);
-
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-
-    // Upgrade the currently selected diwaniya from free to the chosen
-    // paid plan. This is local-only until backend subscription
-    // integration lands.
-    final ok = await AuthService.upgradeCurrentDiwaniyaToPlan(
-      plan: _selected,
-    );
-
-    if (!mounted) return;
-    if (!ok) {
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذّر تفعيل الترقية')),
-      );
-      return;
-    }
-
-    await _showExpenseSuggestion();
-    if (!mounted) return;
-
-    // Pop back to wherever the upgrade was triggered from (home banner,
-    // settings card, contextual paywall). Router guard blocks earlier-
-    // state screens so we are guaranteed to land somewhere safe.
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AuthService.nextRoute());
-    }
-  }
-
-  Future<void> _showExpenseSuggestion() async {
-    final sub = SubscriptionService.current;
-    if (sub == null || sub.amountSar <= 0) return;
-
-    final accepted = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (d) {
-        final dc = d.cl;
-        return AlertDialog(
-          backgroundColor: dc.card,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text(
-            Ar.addSubscriptionAsExpense,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: dc.t1,
+    try {
+      final c = context.cl;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: c.card,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: dc.accentSurface,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.receipt_long_rounded, color: dc.accent),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '${sub.amountSar} ${Ar.sarCurrency} — ${Ar.splitEquallyAmongMembers}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.6,
-                          color: dc.t1,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            title: Text(
+              'الدفع غير جاهز للإطلاق',
+              style: TextStyle(
+                color: c.t1,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            content: Text(
+              'تفعيل ${_selectedPlan.productId} يتطلب إعداد المنتج في المتجر، وربط الشراء بتحقق الخادم قبل منح الاشتراك.',
+              style: TextStyle(
+                color: c.t2,
+                height: 1.65,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('تم'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(d, false),
-              child: Text(
-                Ar.addLater,
-                style: TextStyle(color: dc.t3),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(d, true),
-              child: const Text(Ar.addExpenseNow),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (accepted == true && mounted) {
-      await _createSubscriptionExpense(sub.amountSar);
-    }
-  }
-
-  Future<void> _createSubscriptionExpense(int amountSar) async {
-    final members = currentMembers;
-    if (members.isEmpty) return;
-
-    final shares = <String, double>{};
-    final perPerson = amountSar / members.length;
-
-    for (final m in members) {
-      if (m.name != UserService.currentName) {
-        shares[m.name] = perPerson;
-      }
-    }
-
-    try {
-      await ExpenseService.createExpense(
-        Expense(
-          id: 'exp_${DateTime.now().microsecondsSinceEpoch}',
-          title: Ar.subscriptionExpenseTitle,
-          payer: UserService.currentName,
-          category: 'أخرى',
-          splitType: 'equal',
-          amount: amountSar.toDouble(),
-          shares: shares,
-          createdAt: DateTime.now(),
-          createdBy: UserService.currentName,
-        ),
+          );
+        },
       );
-      await AppRepository.saveActivities();
-      await AppRepository.saveNotifications();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ExpenseService.friendlyMessage(e))),
-      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -195,9 +123,10 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            _HeroCard(
-              title: _title,
-              subtitle: _subtitle,
+            const _HeroCard(
+              title: 'ترقية الديوانية',
+              subtitle:
+                  'اختر حد الأعضاء المناسب. لن يتم تفعيل أي اشتراك إلا بعد شراء المتجر والتحقق من الخادم.',
             ),
             if (current != null) ...[
               const SizedBox(height: 16),
@@ -206,46 +135,34 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
             const SizedBox(height: 16),
             const _BenefitsCard(),
             const SizedBox(height: 18),
-            _PlanCard(
-              title: 'الخطة السنوية',
-              price: '294 ريال / سنة',
-              badge: 'الأوفر',
-              selected: _selected == SubscriptionPlan.yearly,
-              bullets: const [
-                '294 ريال سنويًا',
-                'توفير 50% مقارنة بالخطة الشهرية',
-                'انضمام الأعضاء دون رسوم',
-              ],
-              note: 'الأفضل للديوانيات المستمرة',
-              onTap: () => setState(() => _selected = SubscriptionPlan.yearly),
-            ),
-            const SizedBox(height: 14),
-            _PlanCard(
-              title: 'الخطة الشهرية',
-              price: '49 ريال / شهر',
-              badge: 'الخيار المرن',
-              selected: _selected == SubscriptionPlan.monthly,
-              bullets: const [
-                '49 ريال شهريًا',
-                'تجديد تلقائي كل شهر',
-                'انضمام الأعضاء دون رسوم',
-              ],
-              note: 'الأنسب للمرونة في الاشتراك',
-              onTap: () => setState(() => _selected = SubscriptionPlan.monthly),
-            ),
-            const SizedBox(height: 18),
+            for (final plan in _launchPlans) ...[
+              _PlanCard(
+                title: plan.title,
+                price: plan.price,
+                badge: plan.badge,
+                selected: _selectedProductId == plan.productId,
+                bullets: [
+                  'حتى ${plan.memberLimit} أعضاء',
+                  'معرّف المنتج: ${plan.productId}',
+                  'التفعيل بعد تحقق الخادم فقط',
+                ],
+                note: 'اشتراك شهري للديوانية الحالية',
+                onTap: () => setState(() => _selectedProductId = plan.productId),
+              ),
+              const SizedBox(height: 14),
+            ],
             _PaymentCard(paymentLabel: _paymentLabel),
             const SizedBox(height: 18),
             SizedBox(
               height: 54,
               child: ElevatedButton(
                 onPressed: _confirm,
-                child: Text(_submitting ? Ar.loading : _ctaLabel),
+                child: Text(_submitting ? Ar.loading : 'متابعة الدفع'),
               ),
             ),
             const SizedBox(height: 10),
             Text(
-              'الدفع في هذه النسخة محاكاة داخلية لأغراض التطوير، على أن يتم الربط الفعلي لاحقًا بطريقة دفع مناسبة.',
+              'الشراء داخل التطبيق لم يكتمل ربطه بعد. لا يمنح التطبيق أي صلاحية مدفوعة حتى يعتمد الخادم الاشتراك بعد تحقق المتجر.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -395,21 +312,21 @@ class _BenefitsCard extends StatelessWidget {
           Expanded(
             child: _ValuePill(
               icon: Icons.group_add_rounded,
-              label: 'عدد أعضاء أكبر',
+              label: 'حد أعضاء أوضح',
             ),
           ),
           SizedBox(width: 10),
           Expanded(
             child: _ValuePill(
-              icon: Icons.photo_library_rounded,
-              label: 'ألبوم صور أوسع',
+              icon: Icons.verified_user_rounded,
+              label: 'تحقق من الخادم',
             ),
           ),
           SizedBox(width: 10),
           Expanded(
             child: _ValuePill(
-              icon: Icons.tune_rounded,
-              label: 'أدوات إدارة متقدمة',
+              icon: Icons.restore_rounded,
+              label: 'استعادة مشتريات مطلوبة',
             ),
           ),
         ],
@@ -564,10 +481,10 @@ class _PaymentCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: c.accentMuted,
+              color: c.warningM,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(Icons.payments_rounded, color: c.accent),
+            child: Icon(Icons.lock_clock_rounded, color: c.warning),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -583,7 +500,7 @@ class _PaymentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  paymentLabel,
+                  '$paymentLabel · بانتظار ربط التحقق',
                   style: TextStyle(color: c.t2),
                 ),
               ],

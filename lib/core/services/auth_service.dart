@@ -807,29 +807,13 @@ class AuthService {
   static Future<bool> upgradeCurrentDiwaniyaToPlan({
     required SubscriptionPlan plan,
   }) async {
-    final id = currentDiwaniyaId;
-    if (id.isEmpty) return false;
-    if (plan != SubscriptionPlan.monthly && plan != SubscriptionPlan.yearly) {
-      return false;
+    switch (plan) {
+      case SubscriptionPlan.free:
+      case SubscriptionPlan.monthly:
+      case SubscriptionPlan.yearly:
+      case SubscriptionPlan.joined:
+        return false;
     }
-
-    final existing = SubscriptionService.forDiwaniya(id);
-    final wasCreator = existing?.isCreator ?? false;
-
-    await SubscriptionService.save(
-      SubscriptionStatus(
-        plan: plan,
-        isCreator: wasCreator,
-        billingStartsAt: DateTime.now(),
-        amountSar: _priceFor(plan),
-        active: true,
-        diwaniyaId: id,
-      ),
-      diwaniyaId: id,
-    );
-
-    dataVersion.value++;
-    return true;
   }
 
   static Future<bool> joinDiwaniyaByCode(String code) async {
