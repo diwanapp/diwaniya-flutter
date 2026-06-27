@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../core/api/diwaniya_api.dart';
-import '../data/marketplace_mock_data.dart';
 import '../models/marketplace_filter_model.dart';
 import '../models/marketplace_ad_model.dart';
 import '../models/store_model.dart';
@@ -39,11 +38,6 @@ class MarketplaceService {
 
   static MarketplaceSourceResolver? _overrideResolver;
 
-  /// Production-safe default:
-  /// marketplace remains available in the UI, but no mock merchants are shown
-  /// unless a real resolver is configured or mock mode is explicitly enabled.
-  static bool enableMockData = false;
-
   static void configureResolver(MarketplaceSourceResolver? resolver) {
     _overrideResolver = resolver;
   }
@@ -52,9 +46,6 @@ class MarketplaceService {
     final override = _overrideResolver;
     if (override != null) {
       return List<Store>.from(override());
-    }
-    if (enableMockData) {
-      return List<Store>.from(mockStores);
     }
     return const <Store>[];
   }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/ar.dart';
 import '../../../shared/widgets/app_chip.dart';
-import '../data/marketplace_mock_data.dart';
+import '../data/marketplace_categories.dart';
 
 class MarketplaceCategoryList extends StatelessWidget {
   final String? selectedCategory;
