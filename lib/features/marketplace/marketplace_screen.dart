@@ -117,6 +117,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       final result = await MarketplaceService.loadBackendPlaces(
         diwaniyaId: active.id,
         category: requestCategory,
+        cityId: active.cityId,
+        districtId: active.districtId,
+        radiusKm: 10,
       );
       if (!mounted) return;
       setState(() {
@@ -143,7 +146,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String? _placesNoticeText() {
     switch (_placesMessage) {
       case 'google_places_not_configured':
-        return 'سيتم عرض المحلات القريبة هنا بعد تفعيل الربط مع Google Places.';
+        return 'سيتم عرض المحلات القريبة هنا بعد تفعيل مصدر السوق.';
       case 'location_missing':
         return 'حدد موقع الديوانية بدقة من تفاصيل الديوانية لعرض المحلات القريبة.';
       case 'no_diwaniya_selected':
@@ -483,7 +486,7 @@ class _MarketplaceLocationBrief extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              'قريبًا Google',
+              '10 كم',
               style: TextStyle(
                 color: c.accent,
                 fontSize: 10.5,

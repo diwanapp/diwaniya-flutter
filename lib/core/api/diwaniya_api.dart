@@ -271,6 +271,9 @@ class DiwaniyaApi {
   static Future<Map<String, dynamic>> searchMarketplacePlaces({
     required String diwaniyaId,
     String? category,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
   }) async {
     final d = _normalizedRequiredId(
       diwaniyaId,
@@ -280,6 +283,9 @@ class DiwaniyaApi {
       Endpoints.marketplacePlaces(
         diwaniyaId: d,
         category: category,
+        cityId: cityId,
+        districtId: districtId,
+        radiusKm: radiusKm,
       ),
     );
     return _expectMap(response, 'DiwaniyaApi.searchMarketplacePlaces');

@@ -152,10 +152,16 @@ class MarketplaceService {
   static Future<MarketplaceLoadResult> loadBackendPlaces({
     required String diwaniyaId,
     String? category,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
   }) async {
     final response = await DiwaniyaApi.searchMarketplacePlaces(
       diwaniyaId: diwaniyaId,
       category: category,
+      cityId: cityId,
+      districtId: districtId,
+      radiusKm: radiusKm,
     );
 
     final placesRaw = response['places'];
@@ -200,6 +206,8 @@ class MarketplaceService {
             : 'خدمات');
 
     final coords = _locationParts(locationLabel);
+    final cityName = (json['city_name_ar'] as String?)?.trim();
+    final districtName = (json['district_name_ar'] as String?)?.trim();
     final ratingRaw = json['rating'];
     final reviewRaw = json['user_rating_count'];
     final distanceRaw = json['distance_km'];
@@ -209,8 +217,10 @@ class MarketplaceService {
       id: (json['id'] ?? '').toString(),
       name: (json['name'] ?? '').toString(),
       category: category,
-      city: coords.$2,
-      district: coords.$1,
+      city: cityName != null && cityName.isNotEmpty ? cityName : coords.$2,
+      district: districtName != null && districtName.isNotEmpty
+          ? districtName
+          : coords.$1,
       rating: ratingRaw is num ? ratingRaw.toDouble() : 0,
       reviewCount: reviewRaw is num ? reviewRaw.toInt() : 0,
       distanceKm: distanceRaw is num ? distanceRaw.toDouble() : 0,
@@ -233,6 +243,7 @@ class MarketplaceService {
     if (clean == null || clean.isEmpty) return ('', '');
 
     final parts = clean
+        .replaceAll('Â·', '·')
         .split('·')
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)

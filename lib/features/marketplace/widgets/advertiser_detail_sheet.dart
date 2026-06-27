@@ -198,14 +198,21 @@ class _AdvertiserDetailSheet extends StatelessWidget {
   }
 
   static String? _cityLabel(MarketplaceAd ad) {
-    return _displayText(ad.targetCity) ??
-        _displayText(ad.targetCityNameAr) ??
+    return _displayText(ad.targetCityNameAr) ??
+        _displayText(ad.targetCity) ??
         _displayText(ad.storeCityNameAr);
   }
 
   static String? _districtsLabel(MarketplaceAd ad, {required String? city}) {
+    final canonicalDistricts = (ad.targetDistrictNamesAr ?? const <String>[])
+        .map(_displayText)
+        .whereType<String>()
+        .toList(growable: false);
+    if (canonicalDistricts.isNotEmpty) return canonicalDistricts.join('، ');
+
     final districtList = (ad.targetDistricts ?? const <String>[])
         .map(_displayText)
+        .where((value) => value == null || !_looksLikeId(value))
         .whereType<String>()
         .toList(growable: false);
     if (districtList.isNotEmpty) return districtList.join('، ');
@@ -221,6 +228,11 @@ class _AdvertiserDetailSheet extends StatelessWidget {
     final storeId = ad.merchantStoreId?.trim();
     if (storeId == null || storeId.isEmpty) return null;
     return MarketplaceService.getStoreById(storeId) == null ? null : storeId;
+  }
+
+  static bool _looksLikeId(String value) {
+    return RegExp(r'^[a-z0-9_-]{8,}$', caseSensitive: false).hasMatch(value) &&
+        !RegExp(r'[\u0600-\u06FF]').hasMatch(value);
   }
 }
 

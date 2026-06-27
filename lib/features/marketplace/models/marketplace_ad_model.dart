@@ -18,6 +18,7 @@ class MarketplaceAd {
     this.targetCityNameAr,
     this.targetDistrictId,
     this.targetDistrictNameAr,
+    this.targetDistrictNamesAr,
     this.targetDistricts,
     this.contactWhatsapp,
     this.contactUrl,
@@ -45,6 +46,7 @@ class MarketplaceAd {
   final String? targetCityNameAr;
   final String? targetDistrictId;
   final String? targetDistrictNameAr;
+  final List<String>? targetDistrictNamesAr;
   final List<String>? targetDistricts;
   final String? contactWhatsapp;
   final String? contactUrl;
@@ -91,6 +93,7 @@ class MarketplaceAd {
       targetCityNameAr: (json['target_city_name_ar'] as String?)?.trim(),
       targetDistrictId: (json['target_district_id'] as String?)?.trim(),
       targetDistrictNameAr: (json['target_district_name_ar'] as String?)?.trim(),
+      targetDistrictNamesAr: parseStringList(json['target_district_names_ar']),
       targetDistricts: parseStringList(json['target_districts']),
       contactWhatsapp: (json['contact_whatsapp'] as String?)?.trim(),
       contactUrl: (json['contact_url'] as String?)?.trim(),

@@ -37,11 +37,25 @@ abstract final class Endpoints {
   static String marketplacePlaces({
     required String diwaniyaId,
     String? category,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
   }) {
     final params = <String, String>{'diwaniya_id': diwaniyaId};
     final cleanCategory = category?.trim();
     if (cleanCategory != null && cleanCategory.isNotEmpty) {
       params['category'] = cleanCategory;
+    }
+    final cleanCityId = cityId?.trim();
+    if (cleanCityId != null && cleanCityId.isNotEmpty) {
+      params['city_id'] = cleanCityId;
+    }
+    final cleanDistrictId = districtId?.trim();
+    if (cleanDistrictId != null && cleanDistrictId.isNotEmpty) {
+      params['district_id'] = cleanDistrictId;
+    }
+    if (radiusKm != null) {
+      params['radius_km'] = radiusKm.toStringAsFixed(1);
     }
     final query = Uri(queryParameters: params).query;
     return '/api/marketplace/places?$query';
