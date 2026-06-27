@@ -1,284 +1,294 @@
-import 'dart:io' show Platform;
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../config/theme/app_colors.dart';
+import '../../core/api/api_exception.dart';
+import '../../core/api/subscription_api.dart';
 import '../../core/models/mock_data.dart';
 import '../../l10n/ar.dart';
 
 class PlanSelectionScreen extends StatefulWidget {
-  const PlanSelectionScreen({super.key});
+  final String? trigger;
+  final String? resumableActionToken;
+
+  const PlanSelectionScreen({
+    super.key,
+    this.trigger,
+    this.resumableActionToken,
+  });
 
   @override
   State<PlanSelectionScreen> createState() => _PlanSelectionScreenState();
 }
 
-class _DiwaniyaPricingTier {
-  final String label;
-  final String productId;
-  final int priceSar;
-  final int minMembers;
-  final int? maxMembers;
-  final String rangeLabel;
-  final String description;
-
-  const _DiwaniyaPricingTier({
-    required this.label,
-    required this.productId,
-    required this.priceSar,
-    required this.minMembers,
-    required this.maxMembers,
-    required this.rangeLabel,
-    required this.description,
-  });
-
-  bool matches(int memberCount) {
-    final max = maxMembers;
-    if (max == null) return memberCount >= minMembers;
-    return memberCount >= minMembers && memberCount <= max;
-  }
-}
-
-const _pricingTiers = <_DiwaniyaPricingTier>[
-  _DiwaniyaPricingTier(
-    label: '10',
-    productId: 'diwaniya_10_monthly',
-    priceSar: 10,
-    minMembers: 1,
-    maxMembers: 10,
-    rangeLabel: '1-10 أعضاء',
-    description: 'مناسب للديوانيات الصغيرة',
-  ),
-  _DiwaniyaPricingTier(
-    label: '20',
-    productId: 'diwaniya_20_monthly',
-    priceSar: 20,
-    minMembers: 11,
-    maxMembers: 20,
-    rangeLabel: '11-20 عضو',
-    description: 'مناسب لديوانية نامية',
-  ),
-  _DiwaniyaPricingTier(
-    label: '30',
-    productId: 'diwaniya_30_monthly',
-    priceSar: 30,
-    minMembers: 21,
-    maxMembers: 30,
-    rangeLabel: '21-30 عضو',
-    description: 'مناسب للمجموعات النشطة',
-  ),
-  _DiwaniyaPricingTier(
-    label: '40',
-    productId: 'diwaniya_40_monthly',
-    priceSar: 40,
-    minMembers: 31,
-    maxMembers: 40,
-    rangeLabel: '31-40 عضو',
-    description: 'مناسب للديوانيات الكبيرة',
-  ),
-  _DiwaniyaPricingTier(
-    label: '50+',
-    productId: 'diwaniya_50_plus_monthly',
-    priceSar: 50,
-    minMembers: 41,
-    maxMembers: null,
-    rangeLabel: 'للديوانيات الكبيرة',
-    description: 'أكثر من 40 عضو',
-  ),
-];
-
 class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
-  String? _selectedProductId;
-  bool _submitting = false;
+  SubscriptionCatalog? _catalog;
+  DiwaniyaSubscriptionServerStatus? _status;
+  SubscriptionPriceQuote? _quote;
+
+  var _selectedMemberLimit = 10;
+  var _selectedDuration = SubscriptionDurationChoice.threeMonths;
+  var _loading = true;
+  var _quoteLoading = false;
+  var _submitting = false;
+  var _recordAsSharedExpense = false;
+  var _recordRenewalsAsSharedExpense = false;
+  String? _error;
 
   String get _paymentLabel {
-    if (Platform.isIOS) return 'App Store';
+    if (defaultTargetPlatform == TargetPlatform.iOS) return 'App Store';
     return 'Google Play';
   }
 
-  _DiwaniyaPricingTier? _tierById(String? productId) {
-    if (productId == null) return null;
-    for (final tier in _pricingTiers) {
-      if (tier.productId == productId) return tier;
-    }
-    return null;
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  _DiwaniyaPricingTier? _tierForMembers(int? memberCount) {
-    if (memberCount == null || memberCount <= 0) return null;
-    for (final tier in _pricingTiers) {
-      if (tier.matches(memberCount)) return tier;
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final catalog = await SubscriptionApi.fetchCatalog();
+      if (catalog.tiers.isEmpty) {
+        throw StateError('empty_subscription_catalog');
+      }
+
+      DiwaniyaSubscriptionServerStatus? status;
+      if (currentDiwaniyaId.trim().isNotEmpty) {
+        status = await SubscriptionApi.fetchStatus(currentDiwaniyaId);
+      }
+
+      final recommended = _recommendedTier(
+        catalog.tiers,
+        status?.memberCount ?? _localMemberCount(_currentDiwaniya()),
+      );
+
+      setState(() {
+        _catalog = catalog;
+        _status = status;
+        _selectedMemberLimit =
+            recommended?.memberLimit ?? catalog.defaultMemberLimit;
+        _selectedDuration = catalog.defaultDuration;
+      });
+      await _loadQuote();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = _messageForError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
-    return _pricingTiers.last;
   }
 
-  int? _memberCountFor(DiwaniyaInfo? diwaniya) {
-    if (diwaniya == null) return null;
-    final fromSnapshot = diwaniya.memberCount;
-    if (fromSnapshot != null && fromSnapshot > 0) return fromSnapshot;
-    final localMembers = diwaniyaMembers[diwaniya.id];
-    if (localMembers != null && localMembers.isNotEmpty) {
-      return localMembers.length;
+  Future<void> _loadQuote() async {
+    setState(() {
+      _quoteLoading = true;
+      _error = null;
+    });
+    try {
+      final quote = await SubscriptionApi.previewPrice(
+        memberLimit: _selectedMemberLimit,
+        duration: _selectedDuration,
+      );
+      if (!mounted) return;
+      setState(() => _quote = quote);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = _messageForError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _quoteLoading = false);
+      }
     }
-    return null;
   }
 
-  Future<void> _confirm(_DiwaniyaPricingTier tier) async {
-    if (_submitting) return;
+  Future<void> _submit() async {
+    if (_submitting || currentDiwaniyaId.trim().isEmpty) return;
     setState(() => _submitting = true);
     try {
-      final c = context.cl;
+      final result = await SubscriptionApi.createPurchaseIntent(
+        diwaniyaId: currentDiwaniyaId,
+        memberLimit: _selectedMemberLimit,
+        duration: _selectedDuration,
+        originAction: _originActionForTrigger(widget.trigger),
+        resumableActionToken: widget.resumableActionToken,
+        recordAsSharedExpense: _recordAsSharedExpense,
+        autoRecordRenewalsAsSharedExpense: _recordRenewalsAsSharedExpense,
+      );
+      if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) {
+          final c = dialogContext.cl;
           return AlertDialog(
             backgroundColor: c.card,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
             title: Text(
-              'الدفع قيد التفعيل',
+              'تأكيد المتجر مطلوب',
               style: TextStyle(
                 color: c.t1,
                 fontSize: 18,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w900,
               ),
             ),
             content: Text(
-              'سيتم تفعيل الدفع من خلال App Store وGoogle Play قبل الإطلاق الرسمي. لن يتم تفعيل ${tier.productId} أو منح أي صلاحية مدفوعة حتى يعتمد الخادم الاشتراك بعد تحقق المتجر.',
-              style: TextStyle(
-                color: c.t2,
-                height: 1.65,
-              ),
+              result.messageAr.isEmpty
+                  ? 'سيتم تفعيل الاشتراك بعد تحقق الخادم من عملية الدفع عبر متجر التطبيقات.'
+                  : result.messageAr,
+              style: TextStyle(color: c.t2, height: 1.7),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('تم'),
+                child: const Text('حسنا'),
               ),
             ],
           );
         },
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_messageForError(error))),
+      );
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final current = allDiwaniyas
-        .where((d) => d.id == currentDiwaniyaId)
-        .firstOrNull;
-    final memberCount = _memberCountFor(current);
-    final recommendedTier = _tierForMembers(memberCount);
-    final effectiveSelectedId =
-        _selectedProductId ?? recommendedTier?.productId;
-    final selectedTier = _tierById(effectiveSelectedId);
+    final catalog = _catalog;
+    final quote = _quote;
+    final diwaniya = _currentDiwaniya();
 
-    return Scaffold(
-      backgroundColor: c.bg,
-      appBar: AppBar(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
         backgroundColor: c.bg,
-        title: Text(
-          'اشتراك الديوانية',
-          style: TextStyle(
-            color: c.t1,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+        appBar: AppBar(
+          backgroundColor: c.bg,
+          elevation: 0,
+          title: Text(
+            'اشتراك الديوانية',
+            style: TextStyle(
+              color: c.t1,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            const _HeroCard(
-              title: 'اختر باقة الديوانية',
-              subtitle:
-                  'اشتراك واحد للديوانية، والسعر يتدرج حسب عدد الأعضاء.',
-            ),
-            const SizedBox(height: 16),
-            _PrinciplesCard(c: c),
-            if (current != null) ...[
-              const SizedBox(height: 16),
-              _CurrentDiwaniyaCard(
-                diwaniya: current,
-                memberCount: memberCount,
-                recommendedTier: recommendedTier,
-              ),
-            ],
-            const SizedBox(height: 18),
-            _SectionHeader(
-              c: c,
-              title: 'الباقات الشهرية',
-              subtitle: memberCount == null
-                  ? 'اختر الباقة المناسبة لحجم الديوانية.'
-                  : 'عدد الأعضاء الحالي يرشح باقة ${recommendedTier?.label ?? '10'}.',
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final twoColumns = constraints.maxWidth >= 620;
-                final itemWidth = twoColumns
-                    ? (constraints.maxWidth - 12) / 2
-                    : constraints.maxWidth;
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    for (final tier in _pricingTiers)
-                      SizedBox(
-                        width: itemWidth,
-                        child: _TierCard(
-                          tier: tier,
-                          selected: effectiveSelectedId == tier.productId,
-                          recommended:
-                              recommendedTier?.productId == tier.productId,
-                          onTap: () {
-                            setState(() {
-                              _selectedProductId = tier.productId;
-                            });
+        body: SafeArea(
+          child: _loading && catalog == null
+              ? Center(
+                  child: CircularProgressIndicator(color: c.accent),
+                )
+              : catalog == null
+                  ? _ErrorState(message: _error, onRetry: _load)
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                      children: [
+                        _HeroCard(
+                          title: _headlineForTrigger(widget.trigger),
+                          subtitle:
+                              'اشتراك واحد على مستوى الديوانية. السعر من الخادم حسب عدد الأعضاء والمدة، والتفعيل لا يتم إلا بعد تحقق المتجر.',
+                        ),
+                        const SizedBox(height: 12),
+                        _CurrentStateCard(
+                          diwaniyaName: diwaniya?.name ?? 'الديوانية الحالية',
+                          city: diwaniya?.city,
+                          status: _status,
+                          localMemberCount: _localMemberCount(diwaniya),
+                        ),
+                        const SizedBox(height: 12),
+                        _PlanPickerCard(
+                          tiers: catalog.tiers,
+                          selectedMemberLimit: _selectedMemberLimit,
+                          selectedDuration: _selectedDuration,
+                          yearlyDiscountPercent:
+                              catalog.yearlyDiscountPercent,
+                          onTierChanged: (value) {
+                            setState(() => _selectedMemberLimit = value);
+                            _loadQuote();
+                          },
+                          onDurationChanged: (value) {
+                            setState(() => _selectedDuration = value);
+                            _loadQuote();
                           },
                         ),
-                      ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            _PaymentCard(
-              paymentLabel: _paymentLabel,
-              selectedTier: selectedTier,
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                onPressed: selectedTier == null
-                    ? null
-                    : () => _confirm(selectedTier),
-                child: Text(
-                  _submitting
-                      ? Ar.loading
-                      : selectedTier == null
-                          ? 'اختر باقة للمتابعة'
-                          : 'متابعة الدفع',
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'الدفع الحقيقي سيتم عبر App Store أو Google Play عند تفعيله. لا يتم تفعيل أي اشتراك من الجهاز فقط.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.7,
-                color: c.t3,
-              ),
-            ),
-          ],
+                        const SizedBox(height: 12),
+                        _SharedExpenseCard(
+                          recordAsSharedExpense: _recordAsSharedExpense,
+                          recordRenewalsAsSharedExpense:
+                              _recordRenewalsAsSharedExpense,
+                          onRecordChanged: (value) {
+                            setState(() {
+                              _recordAsSharedExpense = value;
+                              if (!value) {
+                                _recordRenewalsAsSharedExpense = false;
+                              }
+                            });
+                          },
+                          onRenewalsChanged: _recordAsSharedExpense
+                              ? (value) {
+                                  setState(() {
+                                    _recordRenewalsAsSharedExpense = value;
+                                  });
+                                }
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _PriceSummaryCard(
+                          quote: quote,
+                          loading: _quoteLoading,
+                          paymentLabel: _paymentLabel,
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: 10),
+                          _InlineNotice(message: _error!, color: c.error),
+                        ],
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: quote == null ||
+                                    _quoteLoading ||
+                                    currentDiwaniyaId.trim().isEmpty
+                                ? null
+                                : _submit,
+                            child: Text(
+                              _submitting
+                                  ? Ar.loading
+                                  : 'المتابعة عبر $_paymentLabel',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'التجديد التلقائي مفعّل افتراضيا بعد تفعيل الاشتراك ويمكن إيقافه من إدارة الاشتراك. لن يمنح هذا الجهاز أي صلاحية مدفوعة قبل تأكيد الخادم للدفع.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: c.t3,
+                            height: 1.7,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
         ),
       ),
     );
@@ -297,414 +307,28 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-          colors: [
-            c.accent.withValues(alpha: 0.18),
-            c.card,
-            c.cardElevated.withValues(alpha: 0.72),
-          ],
-        ),
+        color: c.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: c.accent.withValues(alpha: 0.16)),
-        boxShadow: [BoxShadow(color: c.shadow, blurRadius: 14)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: c.accent.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              color: c.accent,
-              size: 24,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: c.t1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14.5,
-              height: 1.8,
-              color: c.t2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrinciplesCard extends StatelessWidget {
-  final CL c;
-
-  const _PrinciplesCard({required this.c});
-
-  @override
-  Widget build(BuildContext context) {
-    const items = [
-      'الاشتراك على مستوى الديوانية',
-      'السعر يعتمد على حجم الديوانية',
-      'يمكن الترقية عند نمو عدد الأعضاء',
-      'الصلاحيات والمزايا تبقى حسب الخطة المعتمدة',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.border),
-      ),
-      child: Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.check_circle_rounded, color: c.accent, size: 18),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    items[i],
-                    style: TextStyle(
-                      color: c.t2,
-                      height: 1.55,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (i != items.length - 1) const SizedBox(height: 9),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _CurrentDiwaniyaCard extends StatelessWidget {
-  final DiwaniyaInfo diwaniya;
-  final int? memberCount;
-  final _DiwaniyaPricingTier? recommendedTier;
-
-  const _CurrentDiwaniyaCard({
-    required this.diwaniya,
-    required this.memberCount,
-    required this.recommendedTier,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    final tier = recommendedTier;
-    final locationParts = <String>[
-      if (diwaniya.district.isNotEmpty) diwaniya.district,
-      if (diwaniya.city.isNotEmpty) diwaniya.city,
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  diwaniya.name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: c.t1,
-                  ),
-                ),
-              ),
-              if (memberCount != null)
-                _SoftPill(
-                  label: '$memberCount عضو',
-                  color: c.accent,
-                  background: c.accentMuted,
-                ),
-            ],
-          ),
-          if (locationParts.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              locationParts.join(' · '),
-              style: TextStyle(color: c.t2),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Text(
-            tier == null
-                ? 'لم نستطع تحديد عدد الأعضاء تلقائيًا. اختر الباقة المناسبة لحجم الديوانية.'
-                : 'الباقة المناسبة الآن: ${tier.label}. يمكن الترقية عند نمو الديوانية.',
-            style: TextStyle(
-              color: c.t2,
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final CL c;
-  final String title;
-  final String subtitle;
-
-  const _SectionHeader({
-    required this.c,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: c.t1,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: c.t3,
-            height: 1.5,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TierCard extends StatelessWidget {
-  final _DiwaniyaPricingTier tier;
-  final bool selected;
-  final bool recommended;
-  final VoidCallback onTap;
-
-  const _TierCard({
-    required this.tier,
-    required this.selected,
-    required this.recommended,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        constraints: const BoxConstraints(minHeight: 178),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: selected ? c.cardElevated : c.card,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: selected ? c.accent : c.border,
-            width: selected ? 1.7 : 1,
-          ),
-          boxShadow:
-              selected ? [BoxShadow(color: c.shadow, blurRadius: 14)] : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 62,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    color: selected ? c.accent : c.accentMuted,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        tier.label,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: selected ? c.tInverse : c.accent,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              tier.rangeLabel,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: c.t1,
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w800,
-                                height: 1.35,
-                              ),
-                            ),
-                          ),
-                          if (recommended)
-                            _SoftPill(
-                              label: 'مناسبة الآن',
-                              color: c.success,
-                              background: c.successM,
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        tier.description,
-                        style: TextStyle(
-                          color: c.t3,
-                          height: 1.45,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _PriceLine(priceSar: tier.priceSar),
-            const SizedBox(height: 9),
-            Text(
-              'السعر حسب عدد الأعضاء، وليس تفعيلًا فوريًا للدفع.',
-              style: TextStyle(
-                color: c.t3,
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PriceLine extends StatelessWidget {
-  final int priceSar;
-
-  const _PriceLine({required this.priceSar});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          '$priceSar',
-          style: TextStyle(
-            color: c.t1,
-            fontSize: 31,
-            fontWeight: FontWeight.w900,
-            height: 1,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 2),
-          child: Text(
-            '${Ar.sarCurrency} / شهر',
-            style: TextStyle(
-              color: c.t2,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PaymentCard extends StatelessWidget {
-  final String paymentLabel;
-  final _DiwaniyaPricingTier? selectedTier;
-
-  const _PaymentCard({
-    required this.paymentLabel,
-    required this.selectedTier,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cl;
-    final tier = selectedTier;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: c.border),
+        border: Border.all(color: c.accent.withValues(alpha: 0.18)),
+        boxShadow: [BoxShadow(color: c.shadow, blurRadius: 16)],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: c.warningM,
-              borderRadius: BorderRadius.circular(13),
+              color: c.accentMuted,
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.lock_clock_rounded, color: c.warning),
+            child: Icon(
+              Icons.workspace_premium_rounded,
+              color: c.accent,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -712,28 +336,23 @@ class _PaymentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  Ar.paymentMethod,
+                  title,
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
                     color: c.t1,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 7),
                 Text(
-                  'الدفع عبر $paymentLabel قيد التفعيل.',
-                  style: TextStyle(color: c.t2, height: 1.55),
-                ),
-                if (tier != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'معرّف المنتج المحضّر: ${tier.productId}',
-                    style: TextStyle(
-                      color: c.t3,
-                      fontSize: 12,
-                      height: 1.45,
-                    ),
+                  subtitle,
+                  style: TextStyle(
+                    color: c.t2,
+                    fontSize: 13.5,
+                    height: 1.65,
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -743,23 +362,448 @@ class _PaymentCard extends StatelessWidget {
   }
 }
 
-class _SoftPill extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color background;
+class _CurrentStateCard extends StatelessWidget {
+  final String diwaniyaName;
+  final String? city;
+  final DiwaniyaSubscriptionServerStatus? status;
+  final int? localMemberCount;
 
-  const _SoftPill({
-    required this.label,
-    required this.color,
-    required this.background,
+  const _CurrentStateCard({
+    required this.diwaniyaName,
+    required this.city,
+    required this.status,
+    required this.localMemberCount,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cl;
+    final serverStatus = status;
+    final memberCount = serverStatus?.memberCount ?? localMemberCount;
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      diwaniyaName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: c.t1,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (city != null && city!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        city!,
+                        style: TextStyle(color: c.t3, fontSize: 12.5),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              _SoftPill(
+                label: _statusLabel(serverStatus?.effectiveStatus),
+                color: _statusColor(c, serverStatus?.effectiveStatus),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MetricPill(
+                icon: Icons.group_rounded,
+                label: memberCount == null
+                    ? 'الأعضاء غير متاح'
+                    : '$memberCount عضو',
+              ),
+              if (serverStatus != null)
+                _MetricPill(
+                  icon: Icons.photo_library_rounded,
+                  label: '${serverStatus.photoCount}/${serverStatus.photoLimit} صور',
+                ),
+              if (serverStatus != null)
+                _MetricPill(
+                  icon: Icons.how_to_vote_rounded,
+                  label:
+                      '${serverStatus.activePollCount}/${serverStatus.activePollLimit} تصويت',
+                ),
+            ],
+          ),
+          if (serverStatus?.noticeAr?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 10),
+            _InlineNotice(
+              message: serverStatus!.noticeAr!,
+              color: c.warning,
+            ),
+          ],
+          if (serverStatus?.pendingMemberLimit != null) ...[
+            const SizedBox(height: 10),
+            _InlineNotice(
+              message:
+                  'يوجد تغيير مجدول عند التجديد القادم إلى ${serverStatus!.pendingMemberLimit} عضو.',
+              color: c.info,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanPickerCard extends StatelessWidget {
+  final List<SubscriptionTierOption> tiers;
+  final int selectedMemberLimit;
+  final SubscriptionDurationChoice selectedDuration;
+  final int yearlyDiscountPercent;
+  final ValueChanged<int> onTierChanged;
+  final ValueChanged<SubscriptionDurationChoice> onDurationChanged;
+
+  const _PlanPickerCard({
+    required this.tiers,
+    required this.selectedMemberLimit,
+    required this.selectedDuration,
+    required this.yearlyDiscountPercent,
+    required this.onTierChanged,
+    required this.onDurationChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            title: 'اختر السعة والمدة',
+            subtitle: 'يمكن الترقية لاحقا، أما التخفيض فيُجدول عند التجديد.',
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final tier in tiers)
+                ChoiceChip(
+                  label: Text(tier.label),
+                  selected: tier.memberLimit == selectedMemberLimit,
+                  onSelected: (_) => onTierChanged(tier.memberLimit),
+                  selectedColor: c.accent,
+                  backgroundColor: c.inputBg,
+                  labelStyle: TextStyle(
+                    color: tier.memberLimit == selectedMemberLimit
+                        ? c.tInverse
+                        : c.t1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                      color: tier.memberLimit == selectedMemberLimit
+                          ? c.accent
+                          : c.border,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _DurationButton(
+                  label: '3 أشهر',
+                  selected:
+                      selectedDuration == SubscriptionDurationChoice.threeMonths,
+                  onTap: () => onDurationChanged(
+                    SubscriptionDurationChoice.threeMonths,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _DurationButton(
+                  label: 'سنة - وفر $yearlyDiscountPercent%',
+                  selected: selectedDuration == SubscriptionDurationChoice.annual,
+                  onTap: () => onDurationChanged(
+                    SubscriptionDurationChoice.annual,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SharedExpenseCard extends StatelessWidget {
+  final bool recordAsSharedExpense;
+  final bool recordRenewalsAsSharedExpense;
+  final ValueChanged<bool> onRecordChanged;
+  final ValueChanged<bool>? onRenewalsChanged;
+
+  const _SharedExpenseCard({
+    required this.recordAsSharedExpense,
+    required this.recordRenewalsAsSharedExpense,
+    required this.onRecordChanged,
+    required this.onRenewalsChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return _Surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionTitle(
+            title: 'المصروف المشترك',
+            subtitle: 'اختياري، ولا يُنشأ المصروف إلا بعد تأكيد الدفع من الخادم.',
+          ),
+          const SizedBox(height: 6),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: recordAsSharedExpense,
+            onChanged: (value) => onRecordChanged(value ?? false),
+            activeColor: c.accent,
+            title: Text(
+              'تسجيل الاشتراك كمصروف على الأعضاء',
+              style: TextStyle(color: c.t1, fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              'يحفظ إثبات الدفع بعد التأكيد بدلا من إنشاء مصروف وهمي.',
+              style: TextStyle(color: c.t3, height: 1.45),
+            ),
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 160),
+            child: recordAsSharedExpense
+                ? CheckboxListTile(
+                    key: const ValueKey('record-renewals'),
+                    contentPadding: EdgeInsets.zero,
+                    value: recordRenewalsAsSharedExpense,
+                    onChanged: onRenewalsChanged == null
+                        ? null
+                        : (value) => onRenewalsChanged!(value ?? false),
+                    activeColor: c.accent,
+                    title: Text(
+                      'تطبيق ذلك على التجديدات القادمة',
+                      style: TextStyle(
+                        color: c.t1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('no-renewals')),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriceSummaryCard extends StatelessWidget {
+  final SubscriptionPriceQuote? quote;
+  final bool loading;
+  final String paymentLabel;
+
+  const _PriceSummaryCard({
+    required this.quote,
+    required this.loading,
+    required this.paymentLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    final currentQuote = quote;
+    return _Surface(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: c.accentMuted,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: loading
+                ? Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: c.accent,
+                    ),
+                  )
+                : Icon(Icons.payments_rounded, color: c.accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: currentQuote == null
+                ? Text(
+                    'اختر الباقة لعرض السعر من الخادم.',
+                    style: TextStyle(color: c.t2, height: 1.6),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentQuote.label.isNotEmpty
+                            ? currentQuote.label
+                            : '${_formatSar(currentQuote.amountSar)} ${Ar.sarCurrency}',
+                        style: TextStyle(
+                          color: c.t1,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'السعة ${currentQuote.memberLimit} عضو، والمدة ${currentQuote.durationMonths} أشهر. الدفع عبر $paymentLabel بعد التحقق.',
+                        style: TextStyle(color: c.t2, height: 1.55),
+                      ),
+                      if (currentQuote.savingsSar > 0) ...[
+                        const SizedBox(height: 8),
+                        _SoftPill(
+                          label:
+                              'توفير ${_formatSar(currentQuote.savingsSar)} ${Ar.sarCurrency}',
+                          color: c.success,
+                        ),
+                      ],
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DurationButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DurationButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        height: 46,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? c.accent : c.inputBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? c.accent : c.border),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? c.tInverse : c.t1,
+            fontWeight: FontWeight.w900,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Surface extends StatelessWidget {
+  final Widget child;
+
+  const _Surface({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: background,
+        color: c.card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: c.border),
+        boxShadow: [BoxShadow(color: c.shadow, blurRadius: 12)],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionTitle({
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: c.t1,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(color: c.t3, height: 1.45, fontSize: 12.5),
+        ),
+      ],
+    );
+  }
+}
+
+class _SoftPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _SoftPill({
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: c.isDark ? 0.16 : 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -767,9 +811,218 @@ class _SoftPill extends StatelessWidget {
         style: TextStyle(
           color: color,
           fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
   }
+}
+
+class _MetricPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MetricPill({
+    required this.icon,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: c.inputBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: c.t2),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: c.t2,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  final String message;
+  final Color color;
+
+  const _InlineNotice({
+    required this.message,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: c.isDark ? 0.16 : 0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(color: c.t2, height: 1.55, fontSize: 12.5),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String? message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.cloud_off_rounded, color: c.warning, size: 44),
+          const SizedBox(height: 12),
+          Text(
+            'تعذر تحميل الاشتراكات',
+            style: TextStyle(
+              color: c.t1,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message ?? 'تحقق من الاتصال ثم حاول مرة أخرى.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: c.t2, height: 1.6),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: onRetry,
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+DiwaniyaInfo? _currentDiwaniya() {
+  for (final diwaniya in allDiwaniyas) {
+    if (diwaniya.id == currentDiwaniyaId) return diwaniya;
+  }
+  return null;
+}
+
+int? _localMemberCount(DiwaniyaInfo? diwaniya) {
+  if (diwaniya == null) return null;
+  final count = diwaniya.memberCount;
+  if (count != null && count > 0) return count;
+  final members = diwaniyaMembers[diwaniya.id];
+  if (members != null && members.isNotEmpty) return members.length;
+  return null;
+}
+
+SubscriptionTierOption? _recommendedTier(
+  List<SubscriptionTierOption> tiers,
+  int? memberCount,
+) {
+  if (tiers.isEmpty) return null;
+  final requiredCount = memberCount == null ? 1 : memberCount.clamp(1, 999);
+  for (final tier in tiers) {
+    if (requiredCount <= tier.memberLimit) return tier;
+  }
+  return tiers.last;
+}
+
+String _headlineForTrigger(String? trigger) {
+  switch (trigger) {
+    case 'memberLimit':
+      return 'وسّع الديوانية';
+    case 'photoLimit':
+      return 'افتح مساحة الصور';
+    case 'pollLimit':
+      return 'فعّل التصويتات الإضافية';
+    case 'secondDiwaniya':
+      return 'أنشئ ديوانية إضافية';
+    default:
+      return 'اختر باقة الديوانية';
+  }
+}
+
+String? _originActionForTrigger(String? trigger) {
+  switch (trigger) {
+    case 'memberLimit':
+      return 'add_member';
+    case 'photoLimit':
+      return 'upload_photo';
+    case 'pollLimit':
+      return 'create_poll';
+    case 'secondDiwaniya':
+      return 'create_diwaniya';
+    default:
+      return null;
+  }
+}
+
+String _statusLabel(String? status) {
+  switch (status) {
+    case 'active_paid':
+      return 'مدفوع';
+    case 'cancel_scheduled':
+      return 'ينتهي لاحقا';
+    case 'billing_retry':
+      return 'قيد التحقق';
+    case 'grace_period':
+      return 'مهلة دفع';
+    case 'expired_free_fallback':
+    default:
+      return 'مجاني';
+  }
+}
+
+Color _statusColor(CL c, String? status) {
+  switch (status) {
+    case 'active_paid':
+      return c.success;
+    case 'cancel_scheduled':
+    case 'billing_retry':
+    case 'grace_period':
+      return c.warning;
+    default:
+      return c.info;
+  }
+}
+
+String _messageForError(Object error) {
+  if (error is ApiException && error.message.trim().isNotEmpty) {
+    return error.message;
+  }
+  return 'تعذر إتمام الطلب. حاول مرة أخرى.';
+}
+
+String _formatSar(double amount) {
+  if (amount == amount.roundToDouble()) {
+    return amount.toStringAsFixed(0);
+  }
+  return amount.toStringAsFixed(2);
 }

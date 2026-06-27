@@ -138,4 +138,16 @@ abstract final class Endpoints {
   static String scorekeepingLeaderboard(String diwaniyaId) =>
       '/diwaniyas/$diwaniyaId/scorekeeping/leaderboard';
 
+  // Subscriptions
+  static const String subscriptionCatalog = '/subscriptions/catalog';
+  static const String subscriptionPreview = '/subscriptions/preview';
+  static String diwaniyaSubscriptionStatus(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/status';
+  static String diwaniyaSubscriptionPurchaseIntents(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/purchase-intents';
+  static String diwaniyaSubscriptionAutoRenew(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/auto-renew';
+  static String diwaniyaSubscriptionDowngrade(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/downgrade';
+
 }

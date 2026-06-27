@@ -209,7 +209,10 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.plans,
-      builder: (_, __) => const PlanSelectionScreen(),
+      builder: (_, state) => PlanSelectionScreen(
+        trigger: state.uri.queryParameters['trigger'],
+        resumableActionToken: state.uri.queryParameters['resume'],
+      ),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => AppShell(navigationShell: shell),

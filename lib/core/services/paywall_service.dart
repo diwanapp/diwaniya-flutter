@@ -47,7 +47,7 @@ class PaywallService {
       SnackBar(content: Text(message)),
     );
     if (!context.mounted) return false;
-    context.push(AppRoutes.plans);
+    context.push(_plansPath(trigger));
     return false;
   }
 
@@ -57,7 +57,12 @@ class PaywallService {
     BuildContext context, {
     required PaywallTrigger trigger,
   }) async {
-    context.push(AppRoutes.plans);
+    context.push(_plansPath(trigger));
     return false;
+  }
+
+  static String _plansPath(PaywallTrigger trigger) {
+    final query = Uri(queryParameters: {'trigger': trigger.name}).query;
+    return '${AppRoutes.plans}?$query';
   }
 }
