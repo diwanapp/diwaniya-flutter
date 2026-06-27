@@ -1776,15 +1776,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (_showUpgradeBanner) ...[
                       DiamondSubscriptionCard(
                         title: _homeUpgradeCard?.displayTitle ??
-                            'ديوانيتكم تستاهل أكثر',
+                            'اختروا باقة الديوانية',
                         description: _homeUpgradeCard?.displayDescription ??
-                            'الباقة الماسية تعطيكم مساحة أكبر ومزايا أكثر',
-                        badgeLine1: 'عرض',
-                        badgeLine2: 'الإطلاق',
-                        offerPercent: '50%',
-                        offerText: 'خصم على الاشتراك السنوي',
+                            'اشتراك واحد للديوانية، والسعر حسب عدد الأعضاء',
+                        badgeLine1: 'باقات',
+                        badgeLine2: 'شهرية',
+                        offerPercent: '10',
+                        offerText: 'تبدأ من 10 ر.س شهريًا',
                         buttonText: _homeUpgradeCard?.displayCtaLabel ??
-                            'استفيدوا من العرض',
+                            'اختيار الباقة',
                         onPressed: _openHomeUpgradeOffer,
                         onDismiss: () {
                           setState(() => _upgradeBannerDismissed = true);

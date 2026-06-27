@@ -289,9 +289,9 @@ class Ar {
       'أنشئ ديوانية جديدة أو انضم إلى ديوانية قائمة برمز الدعوة.';
   static const createDiwaniya = 'إنشاء ديوانية';
   static const createDiwaniyaSubtitle =
-      'للمضيف أو المدير — باشتراك شهري أو سنوي وفق الحاجة.';
+      'للمضيف أو المدير — باقات شهرية تتدرج حسب حجم الديوانية.';
   static const creatorPricingHint =
-      '49 ريال شهريًا أو 294 ريال سنويًا للخطة الأوفر.';
+      'تبدأ من 10 ر.س شهريًا وتصل إلى 50 ر.س للديوانيات الكبيرة.';
   static const joinDiwaniya = 'الانضمام لديوانية';
   static const joinDiwaniyaSubtitle =
       'للأعضاء — الدخول مجاني بالكامل عند وجود كود الدعوة.';
@@ -320,18 +320,18 @@ class Ar {
   static const joinNow = 'انضم الآن';
   static const plansTitle = 'اختر خطة الديوانية';
   static const plansSubtitle =
-      'الاشتراك يخص صاحب الديوانية فقط، بينما ينضم للتحويل دون رسوم.';
-  static const monthlyPlan = 'الخطة الشهرية';
-  static const monthlyPrice = '49 ريال / شهر';
-  static const yearlyPlan = 'الخطة السنوية';
-  static const yearlyPrice = '294 ريال / سنة';
-  static const limitedOffer = 'الأوفر';
+      'اشتراك واحد للديوانية، والسعر يتدرج حسب عدد الأعضاء.';
+  static const monthlyPlan = 'الباقات الشهرية';
+  static const monthlyPrice = 'تبدأ من 10 ر.س / شهر';
+  static const yearlyPlan = 'باقة الديوانية';
+  static const yearlyPrice = 'حتى 50 ر.س / شهر';
+  static const limitedOffer = 'حسب حجم الديوانية';
   static const paymentMethod = 'طريقة الدفع';
   static const applePay = 'Apple Pay';
   static const androidPayEquivalent = 'مدى / Google Play';
   static const completeSubscription = 'تأكيد الاشتراك والمتابعة';
   static const paymentMockNotice =
-      'تم بناء منطق الاشتراك محليًا في هذه النسخة، والربط الحقيقي مع بوابات الدفع يكون في مرحلة الإنتاج.';
+      'سيتم تفعيل الدفع من خلال App Store وGoogle Play قبل الإطلاق الرسمي، ولا يمنح التطبيق أي صلاحية مدفوعة من الجهاز فقط.';
   static const joinedMember = 'عضو منضم';
   static const subscriptionStatus = 'حالة الاشتراك';
   static const noSubscriptionYet = 'لا يوجد اشتراك بعد';
@@ -447,18 +447,18 @@ class Ar {
   static const upgradeNow = 'ترقية الآن';
   static const notNow = 'ليس الآن';
   static const discoverPremium = 'اكتشف بريميوم';
-  static const premiumManageUnlimited = 'إدارة بلا حدود';
+  static const premiumManageUnlimited = 'إدارة أوسع حسب الباقة';
   static const premiumHomeBannerTitle = 'ديوانيتك تستاهل الأفضل';
-  static const premiumHomeBannerBody = 'ترقّى لبريميوم — إدارة بلا حدود';
+  static const premiumHomeBannerBody = 'باقات شهرية حسب عدد أعضاء الديوانية';
   static const premiumSettingsTitle = 'بريميوم';
-  static const premiumSettingsBody = 'أعضاء بلا حدود · صور أكثر · مزايا إدارية متقدمة';
-  static const premiumFeatureMembers = 'أعضاء بلا حدود';
+  static const premiumSettingsBody = 'باقات حسب حجم الديوانية · صور أكثر · مزايا إدارية متقدمة';
+  static const premiumFeatureMembers = 'باقات أعضاء أوضح';
   static const premiumFeaturePhotos = 'ألبوم صور أكبر';
   static const premiumFeaturePolls = 'تصويتات أكثر';
   static const premiumFeatureDashboard = 'لوحة تحكم وتحليلات';
   static const premiumFeatureRoles = 'إدارة متقدمة للأعضاء';
-  static const premiumMockNotice = 'هذه نسخة تجريبية محلية للترقية. الربط الفعلي بالدفع سيتم لاحقًا.';
-  static const premiumActivated = 'تم تفعيل بريميوم محليًا لهذه الديوانية';
+  static const premiumMockNotice = 'الدفع الحقيقي قيد التفعيل عبر App Store وGoogle Play.';
+  static const premiumActivated = 'سيتم تفعيل بريميوم بعد تحقق المتجر والخادم';
   static const premiumFullTitle = 'أدِر ديوانيتك باحترافية';
   static const premiumFullSubtitle = 'كل الأدوات اللي تحتاجها في مكان واحد';
   static const premiumContextTitle = 'ارتقِ بتجربة ديوانيتك';
