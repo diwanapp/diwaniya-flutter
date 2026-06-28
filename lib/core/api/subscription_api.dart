@@ -42,6 +42,8 @@ class SubscriptionCatalog {
   final double pricePerMemberMonthSar;
   final int yearlyDiscountPercent;
   final bool autoRenewDefault;
+  final String billingMode;
+  final List<StoreProductMapping> storeProducts;
   final List<String> notes;
 
   const SubscriptionCatalog({
@@ -51,6 +53,8 @@ class SubscriptionCatalog {
     required this.pricePerMemberMonthSar,
     required this.yearlyDiscountPercent,
     required this.autoRenewDefault,
+    required this.billingMode,
+    required this.storeProducts,
     required this.notes,
   });
 
@@ -65,6 +69,7 @@ class SubscriptionCatalog {
             .toList(growable: false)
         : const <SubscriptionTierOption>[];
     final rawNotes = json['notes'];
+    final rawProducts = json['store_products'];
     return SubscriptionCatalog(
       tiers: tiers,
       defaultMemberLimit: _asInt(json['default_member_limit'], fallback: 10),
@@ -72,9 +77,50 @@ class SubscriptionCatalog {
       pricePerMemberMonthSar: _asDouble(json['price_per_member_month_sar']),
       yearlyDiscountPercent: _asInt(json['yearly_discount_percent']),
       autoRenewDefault: json['auto_renew_default'] != false,
+      billingMode: (json['billing_mode'] ?? 'disabled').toString(),
+      storeProducts: rawProducts is List
+          ? rawProducts
+              .whereType<Map>()
+              .map((item) => StoreProductMapping.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ))
+              .toList(growable: false)
+          : const <StoreProductMapping>[],
       notes: rawNotes is List
           ? rawNotes.map((item) => item.toString()).toList(growable: false)
           : const <String>[],
+    );
+  }
+}
+
+class StoreProductMapping {
+  final String provider;
+  final String productId;
+  final int memberLimit;
+  final SubscriptionDurationChoice duration;
+  final int durationMonths;
+  final String displayLabel;
+  final bool active;
+
+  const StoreProductMapping({
+    required this.provider,
+    required this.productId,
+    required this.memberLimit,
+    required this.duration,
+    required this.durationMonths,
+    required this.displayLabel,
+    required this.active,
+  });
+
+  factory StoreProductMapping.fromJson(Map<String, dynamic> json) {
+    return StoreProductMapping(
+      provider: (json['provider'] ?? '').toString(),
+      productId: (json['product_id'] ?? '').toString(),
+      memberLimit: _asInt(json['member_limit']),
+      duration: _durationFromBackend(json['duration']),
+      durationMonths: _asInt(json['duration_months']),
+      displayLabel: (json['display_label'] ?? '').toString(),
+      active: json['active'] == true,
     );
   }
 }
@@ -127,6 +173,12 @@ class DiwaniyaSubscriptionServerStatus {
   final int? pendingMemberLimit;
   final int? pendingDurationMonths;
   final String? noticeAr;
+  final String? storeProvider;
+  final String? storeProductId;
+  final String? storeVerificationStatus;
+  final DateTime? storeExpiresAt;
+  final DateTime? storeLastVerifiedAt;
+  final String? storeLastNotificationType;
 
   const DiwaniyaSubscriptionServerStatus({
     required this.effectiveStatus,
@@ -141,6 +193,12 @@ class DiwaniyaSubscriptionServerStatus {
     required this.pendingMemberLimit,
     required this.pendingDurationMonths,
     required this.noticeAr,
+    required this.storeProvider,
+    required this.storeProductId,
+    required this.storeVerificationStatus,
+    required this.storeExpiresAt,
+    required this.storeLastVerifiedAt,
+    required this.storeLastNotificationType,
   });
 
   factory DiwaniyaSubscriptionServerStatus.fromJson(Map<String, dynamic> json) {
@@ -157,6 +215,13 @@ class DiwaniyaSubscriptionServerStatus {
       pendingMemberLimit: _asNullableInt(json['pending_member_limit']),
       pendingDurationMonths: _asNullableInt(json['pending_duration_months']),
       noticeAr: json['notice_ar']?.toString(),
+      storeProvider: json['store_provider']?.toString(),
+      storeProductId: json['store_product_id']?.toString(),
+      storeVerificationStatus: json['store_verification_status']?.toString(),
+      storeExpiresAt: _asDateTime(json['store_expires_at']),
+      storeLastVerifiedAt: _asDateTime(json['store_last_verified_at']),
+      storeLastNotificationType:
+          json['store_last_notification_type']?.toString(),
     );
   }
 }
@@ -166,12 +231,14 @@ class SubscriptionPurchaseIntentResult {
   final String provider;
   final String messageAr;
   final SubscriptionPriceQuote preview;
+  final List<StoreProductMapping> storeProducts;
 
   const SubscriptionPurchaseIntentResult({
     required this.status,
     required this.provider,
     required this.messageAr,
     required this.preview,
+    required this.storeProducts,
   });
 
   factory SubscriptionPurchaseIntentResult.fromJson(Map<String, dynamic> json) {
@@ -182,6 +249,42 @@ class SubscriptionPurchaseIntentResult {
       preview: SubscriptionPriceQuote.fromJson(
         Map<String, dynamic>.from(json['preview'] as Map),
       ),
+      storeProducts: json['store_products'] is List
+          ? (json['store_products'] as List)
+              .whereType<Map>()
+              .map((item) => StoreProductMapping.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ))
+              .toList(growable: false)
+          : const <StoreProductMapping>[],
+    );
+  }
+}
+
+class StoreVerificationResult {
+  final String status;
+  final String messageAr;
+  final DiwaniyaSubscriptionServerStatus subscription;
+  final String? transactionStatus;
+  final String? resumableActionStatus;
+
+  const StoreVerificationResult({
+    required this.status,
+    required this.messageAr,
+    required this.subscription,
+    required this.transactionStatus,
+    required this.resumableActionStatus,
+  });
+
+  factory StoreVerificationResult.fromJson(Map<String, dynamic> json) {
+    return StoreVerificationResult(
+      status: (json['status'] ?? '').toString(),
+      messageAr: (json['message_ar'] ?? '').toString(),
+      subscription: DiwaniyaSubscriptionServerStatus.fromJson(
+        Map<String, dynamic>.from(json['subscription'] as Map),
+      ),
+      transactionStatus: json['transaction_status']?.toString(),
+      resumableActionStatus: json['resumable_action_status']?.toString(),
     );
   }
 }
@@ -245,6 +348,66 @@ class SubscriptionApi {
       Map<String, dynamic>.from(raw),
     );
   }
+
+  static Future<StoreVerificationResult> verifyStorePurchase({
+    required String diwaniyaId,
+    required String provider,
+    required String productId,
+    required String? purchaseToken,
+    required String? transactionId,
+    required String? originalTransactionId,
+    required String? signedTransaction,
+    required String environment,
+    required String? pendingActionToken,
+    required bool recordAsSharedExpense,
+    required bool autoRecordRenewalsAsSharedExpense,
+  }) async {
+    final raw = await ApiClient.post(
+      Endpoints.diwaniyaSubscriptionVerifyStorePurchase(diwaniyaId),
+      body: {
+        'provider': provider,
+        'product_id': productId,
+        'environment': environment,
+        if (purchaseToken != null) 'purchase_token': purchaseToken,
+        if (transactionId != null) 'transaction_id': transactionId,
+        if (originalTransactionId != null)
+          'original_transaction_id': originalTransactionId,
+        if (signedTransaction != null) 'signed_transaction': signedTransaction,
+        if (pendingActionToken != null)
+          'pending_action_token': pendingActionToken,
+        'record_as_shared_expense': recordAsSharedExpense,
+        'auto_record_renewals_as_shared_expense':
+            autoRecordRenewalsAsSharedExpense,
+      },
+    ) as Map;
+    return StoreVerificationResult.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  static Future<StoreVerificationResult> restorePurchase({
+    required String diwaniyaId,
+    required String provider,
+    required String productId,
+    required String? purchaseToken,
+    required String? transactionId,
+    required String? originalTransactionId,
+    required String? signedTransaction,
+    required String environment,
+  }) async {
+    final raw = await ApiClient.post(
+      Endpoints.diwaniyaSubscriptionRestore(diwaniyaId),
+      body: {
+        'provider': provider,
+        'product_id': productId,
+        'environment': environment,
+        if (purchaseToken != null) 'purchase_token': purchaseToken,
+        if (transactionId != null) 'transaction_id': transactionId,
+        if (originalTransactionId != null)
+          'original_transaction_id': originalTransactionId,
+        if (signedTransaction != null) 'signed_transaction': signedTransaction,
+      },
+    ) as Map;
+    return StoreVerificationResult.fromJson(Map<String, dynamic>.from(raw));
+  }
 }
 
 SubscriptionDurationChoice _durationFromBackend(Object? value) {
@@ -269,4 +432,9 @@ double _asDouble(Object? value, {double fallback = 0}) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value) ?? fallback;
   return fallback;
+}
+
+DateTime? _asDateTime(Object? value) {
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
 }

@@ -145,6 +145,10 @@ abstract final class Endpoints {
       '/diwaniyas/$diwaniyaId/subscription/status';
   static String diwaniyaSubscriptionPurchaseIntents(String diwaniyaId) =>
       '/diwaniyas/$diwaniyaId/subscription/purchase-intents';
+  static String diwaniyaSubscriptionVerifyStorePurchase(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/verify-store-purchase';
+  static String diwaniyaSubscriptionRestore(String diwaniyaId) =>
+      '/diwaniyas/$diwaniyaId/subscription/restore';
   static String diwaniyaSubscriptionAutoRenew(String diwaniyaId) =>
       '/diwaniyas/$diwaniyaId/subscription/auto-renew';
   static String diwaniyaSubscriptionDowngrade(String diwaniyaId) =>

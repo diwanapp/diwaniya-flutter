@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/api/subscription_api.dart';
 import '../../core/models/mock_data.dart';
+import '../../core/services/store_billing_service.dart';
 import '../../l10n/ar.dart';
 
 class PlanSelectionScreen extends StatefulWidget {
@@ -25,15 +29,21 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
   SubscriptionCatalog? _catalog;
   DiwaniyaSubscriptionServerStatus? _status;
   SubscriptionPriceQuote? _quote;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  Map<String, ProductDetails> _storeProductsById =
+      const <String, ProductDetails>{};
 
   var _selectedMemberLimit = 10;
   var _selectedDuration = SubscriptionDurationChoice.threeMonths;
   var _loading = true;
   var _quoteLoading = false;
   var _submitting = false;
+  var _verifyingPurchase = false;
+  var _storeAvailable = false;
   var _recordAsSharedExpense = false;
   var _recordRenewalsAsSharedExpense = false;
   String? _error;
+  String? _storeMessage;
 
   String get _paymentLabel {
     if (defaultTargetPlatform == TargetPlatform.iOS) return 'App Store';
@@ -43,7 +53,20 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
   @override
   void initState() {
     super.initState();
+    _purchaseSubscription = StoreBillingService.purchaseStream.listen(
+      (purchases) => unawaited(_handlePurchaseUpdates(purchases)),
+      onError: (_) {
+        if (!mounted) return;
+        _showSnack('تعذر متابعة عملية الدفع من المتجر. حاول مرة أخرى.');
+      },
+    );
     _load();
+  }
+
+  @override
+  void dispose() {
+    _purchaseSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -74,6 +97,7 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
             recommended?.memberLimit ?? catalog.defaultMemberLimit;
         _selectedDuration = catalog.defaultDuration;
       });
+      await _loadStoreProducts(catalog);
       await _loadQuote();
     } catch (error) {
       if (!mounted) return;
@@ -85,6 +109,22 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
         setState(() => _loading = false);
       }
     }
+  }
+
+  Future<void> _loadStoreProducts(SubscriptionCatalog catalog) async {
+    final provider = StoreBillingService.providerForCurrentPlatform();
+    final productIds = catalog.storeProducts
+        .where((product) => product.provider == provider && product.active)
+        .map((product) => product.productId)
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
+    final result = await StoreBillingService.queryProducts(productIds);
+    if (!mounted) return;
+    setState(() {
+      _storeAvailable = result.available && result.productsById.isNotEmpty;
+      _storeProductsById = result.productsById;
+      _storeMessage = result.messageAr;
+    });
   }
 
   Future<void> _loadQuote() async {
@@ -112,10 +152,22 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
   }
 
   Future<void> _submit() async {
-    if (_submitting || currentDiwaniyaId.trim().isEmpty) return;
+    if (_submitting ||
+        _verifyingPurchase ||
+        currentDiwaniyaId.trim().isEmpty) {
+      return;
+    }
+    final product = _selectedProductDetails();
+    if (!_storeAvailable || product == null) {
+      _showSnack(
+        _storeMessage ??
+            'الاشتراكات غير متاحة مؤقتا. حاول لاحقا.',
+      );
+      return;
+    }
     setState(() => _submitting = true);
     try {
-      final result = await SubscriptionApi.createPurchaseIntent(
+      await SubscriptionApi.createPurchaseIntent(
         diwaniyaId: currentDiwaniyaId,
         memberLimit: _selectedMemberLimit,
         duration: _selectedDuration,
@@ -125,43 +177,10 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
         autoRecordRenewalsAsSharedExpense: _recordRenewalsAsSharedExpense,
       );
       if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          final c = dialogContext.cl;
-          return AlertDialog(
-            backgroundColor: c.card,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(22),
-            ),
-            title: Text(
-              'تأكيد المتجر مطلوب',
-              style: TextStyle(
-                color: c.t1,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            content: Text(
-              result.messageAr.isEmpty
-                  ? 'سيتم تفعيل الاشتراك بعد تحقق الخادم من عملية الدفع عبر متجر التطبيقات.'
-                  : result.messageAr,
-              style: TextStyle(color: c.t2, height: 1.7),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('حسنا'),
-              ),
-            ],
-          );
-        },
-      );
+      await StoreBillingService.buySubscription(product);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_messageForError(error))),
-      );
+      _showSnack(_messageForError(error));
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -169,11 +188,157 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
     }
   }
 
+  Future<void> _restorePurchases() async {
+    if (_submitting || _verifyingPurchase) return;
+    setState(() => _submitting = true);
+    try {
+      await StoreBillingService.restorePurchases();
+      if (!mounted) return;
+      _showSnack('جاري البحث عن عمليات شراء قابلة للاستعادة.');
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('تعذر بدء استعادة الاشتراك. حاول لاحقا.');
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  Future<void> _handlePurchaseUpdates(List<PurchaseDetails> purchases) async {
+    for (final purchase in purchases) {
+      if (!_productKnownToCatalog(purchase.productID)) continue;
+      if (purchase.status == PurchaseStatus.pending) {
+        _showSnack('عملية الدفع قيد المعالجة.');
+        continue;
+      }
+      if (purchase.status == PurchaseStatus.error) {
+        _showSnack('تعذر إتمام الدفع من المتجر.');
+        await StoreBillingService.completeIfNeeded(purchase);
+        continue;
+      }
+      if (purchase.status == PurchaseStatus.canceled) {
+        _showSnack('تم إلغاء عملية الدفع.');
+        await StoreBillingService.completeIfNeeded(purchase);
+        continue;
+      }
+      if (purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored) {
+        await _verifyPurchase(
+          purchase,
+          restore: purchase.status == PurchaseStatus.restored,
+        );
+      }
+    }
+  }
+
+  Future<void> _verifyPurchase(
+    PurchaseDetails purchase, {
+    required bool restore,
+  }) async {
+    if (_verifyingPurchase || currentDiwaniyaId.trim().isEmpty) return;
+    setState(() => _verifyingPurchase = true);
+    try {
+      final payload = StoreBillingService.payloadFor(purchase);
+      final result = restore
+          ? await SubscriptionApi.restorePurchase(
+              diwaniyaId: currentDiwaniyaId,
+              provider: payload.provider,
+              productId: payload.productId,
+              purchaseToken: payload.purchaseToken,
+              transactionId: payload.transactionId,
+              originalTransactionId: payload.originalTransactionId,
+              signedTransaction: payload.signedTransaction,
+              environment: payload.environment,
+            )
+          : await SubscriptionApi.verifyStorePurchase(
+              diwaniyaId: currentDiwaniyaId,
+              provider: payload.provider,
+              productId: payload.productId,
+              purchaseToken: payload.purchaseToken,
+              transactionId: payload.transactionId,
+              originalTransactionId: payload.originalTransactionId,
+              signedTransaction: payload.signedTransaction,
+              environment: payload.environment,
+              pendingActionToken: widget.resumableActionToken,
+              recordAsSharedExpense: _recordAsSharedExpense,
+              autoRecordRenewalsAsSharedExpense:
+                  _recordRenewalsAsSharedExpense,
+            );
+      if (!mounted) return;
+      setState(() => _status = result.subscription);
+      _showSnack(
+        result.messageAr.isEmpty
+            ? 'تم التحقق من الاشتراك.'
+            : result.messageAr,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(_messageForError(error));
+    } finally {
+      await StoreBillingService.completeIfNeeded(purchase);
+      if (mounted) {
+        setState(() => _verifyingPurchase = false);
+      }
+    }
+  }
+
+  StoreProductMapping? _selectedStoreProduct() {
+    final catalog = _catalog;
+    if (catalog == null) return null;
+    final provider = StoreBillingService.providerForCurrentPlatform();
+    for (final product in catalog.storeProducts) {
+      if (product.provider == provider &&
+          product.active &&
+          product.memberLimit == _selectedMemberLimit &&
+          product.duration == _selectedDuration) {
+        return product;
+      }
+    }
+    return null;
+  }
+
+  ProductDetails? _selectedProductDetails() {
+    final mapping = _selectedStoreProduct();
+    if (mapping == null) return null;
+    return _storeProductsById[mapping.productId];
+  }
+
+  bool _productKnownToCatalog(String productId) {
+    final catalog = _catalog;
+    if (catalog == null) return false;
+    final provider = StoreBillingService.providerForCurrentPlatform();
+    return catalog.storeProducts.any(
+      (product) =>
+          product.provider == provider &&
+          product.productId == productId &&
+          product.active,
+    );
+  }
+
+  bool get _canStartStorePurchase {
+    return _quote != null &&
+        !_quoteLoading &&
+        !_submitting &&
+        !_verifyingPurchase &&
+        currentDiwaniyaId.trim().isNotEmpty &&
+        _storeAvailable &&
+        _selectedProductDetails() != null;
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
     final catalog = _catalog;
     final quote = _quote;
+    final storeProduct = _selectedProductDetails();
     final diwaniya = _currentDiwaniya();
 
     return Directionality(
@@ -256,6 +421,9 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
                           quote: quote,
                           loading: _quoteLoading,
                           paymentLabel: _paymentLabel,
+                          localizedStorePrice: storeProduct?.price,
+                          storeMessage: _storeMessage,
+                          storeAvailable: _storeAvailable,
                         ),
                         if (_error != null) ...[
                           const SizedBox(height: 10),
@@ -265,17 +433,19 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
                         SizedBox(
                           height: 54,
                           child: ElevatedButton(
-                            onPressed: quote == null ||
-                                    _quoteLoading ||
-                                    currentDiwaniyaId.trim().isEmpty
-                                ? null
-                                : _submit,
+                            onPressed: _canStartStorePurchase ? _submit : null,
                             child: Text(
-                              _submitting
+                              _submitting || _verifyingPurchase
                                   ? Ar.loading
                                   : 'المتابعة عبر $_paymentLabel',
                             ),
                           ),
+                        ),
+                        TextButton(
+                          onPressed: _submitting || _verifyingPurchase
+                              ? null
+                              : _restorePurchases,
+                          child: const Text('استعادة الاشتراك'),
                         ),
                         const SizedBox(height: 10),
                         Text(
@@ -619,11 +789,17 @@ class _PriceSummaryCard extends StatelessWidget {
   final SubscriptionPriceQuote? quote;
   final bool loading;
   final String paymentLabel;
+  final String? localizedStorePrice;
+  final String? storeMessage;
+  final bool storeAvailable;
 
   const _PriceSummaryCard({
     required this.quote,
     required this.loading,
     required this.paymentLabel,
+    required this.localizedStorePrice,
+    required this.storeMessage,
+    required this.storeAvailable,
   });
 
   @override
@@ -676,6 +852,14 @@ class _PriceSummaryCard extends StatelessWidget {
                       Text(
                         'السعة ${currentQuote.memberLimit} عضو، والمدة ${currentQuote.durationMonths} أشهر. الدفع عبر $paymentLabel بعد التحقق.',
                         style: TextStyle(color: c.t2, height: 1.55),
+                      ),
+                      const SizedBox(height: 8),
+                      _SoftPill(
+                        label: storeAvailable && localizedStorePrice != null
+                            ? 'سعر المتجر $localizedStorePrice'
+                            : storeMessage ??
+                                'الاشتراكات غير متاحة مؤقتا. حاول لاحقا.',
+                        color: storeAvailable ? c.info : c.warning,
                       ),
                       if (currentQuote.savingsSar > 0) ...[
                         const SizedBox(height: 8),
