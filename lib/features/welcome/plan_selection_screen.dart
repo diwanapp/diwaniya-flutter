@@ -11,6 +11,8 @@ import '../../core/models/mock_data.dart';
 import '../../core/services/store_billing_service.dart';
 import '../../l10n/ar.dart';
 
+const _sarCurrency = 'ر.س';
+
 class PlanSelectionScreen extends StatefulWidget {
   final String? trigger;
   final String? resumableActionToken;
@@ -522,12 +524,14 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
     final catalog = _catalog;
     final quote = _quote;
     final diwaniya = _currentDiwaniya();
+    final currentMemberCount =
+        _status?.memberCount ?? _localMemberCount(diwaniya);
     final minimumTier = catalog == null
         ? null
         : _minimumTierForTrigger(
             catalog.tiers,
             status: _status,
-            memberCount: _status?.memberCount ?? _localMemberCount(diwaniya),
+            memberCount: currentMemberCount,
             trigger: widget.trigger,
           );
     final minimumMemberLimit = minimumTier?.memberLimit;
@@ -564,7 +568,12 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
                         _HeroCard(
                           contextLine: _contextualLineForTrigger(widget.trigger),
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
+                        _DiwaniyaContextLine(
+                          diwaniyaName: diwaniya?.name,
+                          memberCount: currentMemberCount,
+                        ),
+                        const SizedBox(height: 12),
                         _SelectedTierLine(
                           memberLimit: _selectedMemberLimit,
                           monthlyAmountSar: _monthlyAmountForTier(
@@ -707,7 +716,7 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           const Text(
-            'بس بـ 1 ر.س للعضو شهريًا',
+            'بس بـ 1 $_sarCurrency للعضو شهريًا',
             style: TextStyle(
               color: AppColors.warmIvory,
               fontSize: 27,
@@ -753,6 +762,51 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
+class _DiwaniyaContextLine extends StatelessWidget {
+  final String? diwaniyaName;
+  final int? memberCount;
+
+  const _DiwaniyaContextLine({
+    required this.diwaniyaName,
+    required this.memberCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    final cleanName = diwaniyaName?.trim();
+    final name = cleanName == null || cleanName.isEmpty
+        ? 'هذه الديوانية'
+        : cleanName;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Icon(
+            Icons.meeting_room_rounded,
+            color: c.accent.withValues(alpha: 0.9),
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$name · ${_currentMembersLabel(memberCount)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: c.t2.withValues(alpha: 0.9),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SelectedTierLine extends StatelessWidget {
   final int memberLimit;
   final double monthlyAmountSar;
@@ -778,7 +832,7 @@ class _SelectedTierLine extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${_membersLabel(memberLimit)} = ${_formatSar(monthlyAmountSar)} ر.س / شهر',
+              '${_membersLabel(memberLimit)} = ${_formatSar(monthlyAmountSar)} $_sarCurrency / شهر',
               style: TextStyle(
                 color: c.t1,
                 fontSize: 14.5,
@@ -813,6 +867,9 @@ class _PlanPickerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cl;
+    final hasDisabledTiers = minimumMemberLimit != null &&
+        tiers.any((tier) => tier.memberLimit < minimumMemberLimit!);
     return _Surface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -825,10 +882,18 @@ class _PlanPickerCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               const gap = 6.0;
-              final chipWidth =
-                  ((constraints.maxWidth - (gap * 4)) / 5).clamp(48.0, 54.0);
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              final availableChipWidth =
+                  (constraints.maxWidth - (gap * 4)) / 5;
+              final shouldScroll = availableChipWidth < 44;
+              final chipWidth = shouldScroll
+                  ? 44.0
+                  : availableChipWidth.clamp(44.0, 52.0).toDouble();
+              final tierRow = Row(
+                mainAxisSize:
+                    shouldScroll ? MainAxisSize.min : MainAxisSize.max,
+                mainAxisAlignment: shouldScroll
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.spaceBetween,
                 children: [
                   for (final tier in tiers) ...[
                     _MemberTierChip(
@@ -843,8 +908,27 @@ class _PlanPickerCard extends StatelessWidget {
                   ],
                 ],
               );
+              if (shouldScroll) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: tierRow,
+                );
+              }
+              return tierRow;
             },
           ),
+          if (hasDisabledTiers) ...[
+            const SizedBox(height: 8),
+            Text(
+              'الاستخدام الحالي يتجاوز هذه الباقة.',
+              style: TextStyle(
+                color: c.t3,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                height: 1.45,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           Row(
             children: [
@@ -932,8 +1016,8 @@ class _PriceSummaryCard extends StatelessWidget {
                 children: [
                   Text(
                     isAnnual
-                        ? '${_formatSar(currentQuote.amountSar)} ر.س سنويًا'
-                        : '${_formatSar(currentQuote.amountSar)} ر.س',
+                        ? '${_formatSar(currentQuote.amountSar)} $_sarCurrency سنويًا'
+                        : '${_formatSar(currentQuote.amountSar)} $_sarCurrency',
                     style: TextStyle(
                       color: c.t1,
                       fontSize: 32,
@@ -944,7 +1028,7 @@ class _PriceSummaryCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     isAnnual
-                        ? 'بدل ${_formatSar(currentQuote.subtotalSar)} ر.س'
+                        ? 'بدل ${_formatSar(currentQuote.subtotalSar)} $_sarCurrency'
                         : 'كل ${currentQuote.durationMonths} أشهر',
                     style: TextStyle(
                       color: c.t2,
@@ -956,7 +1040,7 @@ class _PriceSummaryCard extends StatelessWidget {
                   Text(
                     isAnnual
                         ? 'توفير $yearlyDiscountPercent%'
-                        : 'يعادل ${_formatSar(monthlyEquivalent)} ر.س شهريًا',
+                        : 'يعادل ${_formatSar(monthlyEquivalent)} $_sarCurrency شهريًا',
                     style: TextStyle(
                       color: isAnnual ? c.success : c.t3,
                       fontSize: 13,
@@ -975,15 +1059,22 @@ class _BenefitRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _BenefitChip(label: 'أعضاء أكثر'),
-        _BenefitChip(label: 'صور أكثر', icon: Icons.image_rounded),
-        _BenefitChip(label: 'تصويتات أكثر', icon: Icons.how_to_vote_rounded),
-        _BenefitChip(label: 'ملفات أكبر', icon: Icons.attach_file_rounded),
-      ],
+    return const SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _BenefitChip(label: 'أعضاء أكثر'),
+          SizedBox(width: 6),
+          _BenefitChip(label: 'صور أكثر', icon: Icons.image_rounded),
+          SizedBox(width: 6),
+          _BenefitChip(
+            label: 'تصويتات أكثر',
+            icon: Icons.how_to_vote_rounded,
+          ),
+          SizedBox(width: 6),
+          _BenefitChip(label: 'ملفات أكبر', icon: Icons.attach_file_rounded),
+        ],
+      ),
     );
   }
 }
@@ -1001,7 +1092,7 @@ class _BenefitChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cl;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: c.inputBg,
         borderRadius: BorderRadius.circular(999),
@@ -1010,13 +1101,13 @@ class _BenefitChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: c.t3),
-          const SizedBox(width: 5),
+          Icon(icon, size: 13, color: c.t3),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: c.t2,
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1327,23 +1418,26 @@ SubscriptionTierOption? _minimumTierForTrigger(
   required String? trigger,
 }) {
   if (tiers.isEmpty) return null;
+  final usageTier = _recommendedTier(tiers, memberCount);
   switch (trigger) {
     case 'memberLimit':
       final requiredCount = ((status?.memberCount ?? memberCount ?? 0) + 1)
           .clamp(1, 999);
-      return _recommendedTier(tiers, requiredCount);
+      return _higherTier(usageTier, _recommendedTier(tiers, requiredCount));
     case 'photoLimit':
     case 'pollLimit':
       final currentLimit = status?.memberLimit;
       if (currentLimit == null || currentLimit <= 0) {
-        return _recommendedTier(tiers, memberCount);
+        return usageTier;
       }
       for (final tier in tiers) {
-        if (tier.memberLimit > currentLimit) return tier;
+        if (tier.memberLimit > currentLimit) {
+          return _higherTier(usageTier, tier);
+        }
       }
-      return tiers.last;
+      return _higherTier(usageTier, tiers.last);
     default:
-      return _recommendedTier(tiers, memberCount);
+      return usageTier;
   }
 }
 
@@ -1365,6 +1459,14 @@ String _membersLabel(int memberLimit) {
   if (memberLimit == 10) return '10 أعضاء';
   if (memberLimit >= 50) return '50+ عضوًا';
   return '$memberLimit عضوًا';
+}
+
+String _currentMembersLabel(int? memberCount) {
+  if (memberCount == null || memberCount <= 0) return 'عدد الأعضاء غير متاح';
+  if (memberCount == 1) return 'عضو واحد حاليًا';
+  if (memberCount == 2) return 'عضوان حاليًا';
+  if (memberCount <= 10) return '$memberCount أعضاء حاليًا';
+  return '$memberCount عضوًا حاليًا';
 }
 
 String _tierChipLabel(int memberLimit) {
