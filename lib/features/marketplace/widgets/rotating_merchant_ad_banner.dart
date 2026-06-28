@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/marketplace_ad_model.dart';
+import '../services/marketplace_service.dart';
 import 'advertiser_detail_sheet.dart';
 
 class RotatingMerchantAdBanner extends StatefulWidget {
@@ -13,6 +14,10 @@ class RotatingMerchantAdBanner extends StatefulWidget {
     this.padding = EdgeInsets.zero,
     this.borderRadius = 24,
     this.aspectRatio = 16 / 7,
+    this.diwaniyaId,
+    this.categoryKey,
+    this.cityId,
+    this.districtId,
   });
 
   final List<MarketplaceAd> ads;
@@ -20,6 +25,10 @@ class RotatingMerchantAdBanner extends StatefulWidget {
   final EdgeInsetsGeometry padding;
   final double borderRadius;
   final double aspectRatio;
+  final String? diwaniyaId;
+  final String? categoryKey;
+  final String? cityId;
+  final String? districtId;
 
   @override
   State<RotatingMerchantAdBanner> createState() => _RotatingMerchantAdBannerState();
@@ -31,6 +40,7 @@ class _RotatingMerchantAdBannerState extends State<RotatingMerchantAdBanner> {
 
   Timer? _timer;
   int _index = 0;
+  final Set<String> _impressedAdIds = <String>{};
 
   List<MarketplaceAd> get _displayAds => widget.ads
       .where((ad) => ad.isDisplayableForPlacement(widget.placementScreen))
@@ -81,6 +91,7 @@ class _RotatingMerchantAdBannerState extends State<RotatingMerchantAdBanner> {
     if (ads.isEmpty) return const SizedBox.shrink();
 
     final ad = ads[_index.clamp(0, ads.length - 1)];
+    _recordImpression(ad);
     final imageUrl = ad.imageUrl?.trim();
     if (imageUrl == null || imageUrl.isEmpty) return const SizedBox.shrink();
 
@@ -91,7 +102,17 @@ class _RotatingMerchantAdBannerState extends State<RotatingMerchantAdBanner> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => showAdvertiserDetailSheet(context, ad),
+            onTap: () {
+              MarketplaceService.recordMarketplaceAdEventLater(
+                eventType: 'marketplace_ad_click',
+                ad: ad,
+                diwaniyaId: widget.diwaniyaId,
+                categoryKey: widget.categoryKey,
+                cityId: widget.cityId,
+                districtId: widget.districtId,
+              );
+              showAdvertiserDetailSheet(context, ad);
+            },
             child: AspectRatio(
               aspectRatio: widget.aspectRatio,
               child: AnimatedSwitcher(
@@ -117,6 +138,18 @@ class _RotatingMerchantAdBannerState extends State<RotatingMerchantAdBanner> {
           ),
         ),
       ),
+    );
+  }
+
+  void _recordImpression(MarketplaceAd ad) {
+    if (!_impressedAdIds.add(ad.id)) return;
+    MarketplaceService.recordMarketplaceAdEventLater(
+      eventType: 'marketplace_ad_impression',
+      ad: ad,
+      diwaniyaId: widget.diwaniyaId,
+      categoryKey: widget.categoryKey,
+      cityId: widget.cityId,
+      districtId: widget.districtId,
     );
   }
 }

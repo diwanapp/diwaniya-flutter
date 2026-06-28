@@ -61,6 +61,72 @@ abstract final class Endpoints {
     return '/api/marketplace/places?$query';
   }
 
+  static String marketplaceDiscovery({
+    required String diwaniyaId,
+    String? category,
+    String? queryText,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
+    int limit = 20,
+  }) {
+    final params = <String, String>{
+      'diwaniya_id': diwaniyaId,
+      'limit': limit.toString(),
+    };
+    final cleanCategory = category?.trim();
+    if (cleanCategory != null && cleanCategory.isNotEmpty) {
+      params['category'] = cleanCategory;
+    }
+    final cleanQuery = queryText?.trim();
+    if (cleanQuery != null && cleanQuery.isNotEmpty) {
+      params['q'] = cleanQuery;
+    }
+    final cleanCityId = cityId?.trim();
+    if (cleanCityId != null && cleanCityId.isNotEmpty) {
+      params['city_id'] = cleanCityId;
+    }
+    final cleanDistrictId = districtId?.trim();
+    if (cleanDistrictId != null && cleanDistrictId.isNotEmpty) {
+      params['district_id'] = cleanDistrictId;
+    }
+    if (radiusKm != null) {
+      params['radius_km'] = radiusKm.toStringAsFixed(1);
+    }
+    final query = Uri(queryParameters: params).query;
+    return '/api/marketplace/discovery?$query';
+  }
+
+  static String marketplaceEventsBatch() => '/api/marketplace/events/batch';
+
+  static String marketplaceStoreDetails({
+    required String storeId,
+    required String diwaniyaId,
+    String? category,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
+  }) {
+    final params = <String, String>{'diwaniya_id': diwaniyaId};
+    final cleanCategory = category?.trim();
+    if (cleanCategory != null && cleanCategory.isNotEmpty) {
+      params['category'] = cleanCategory;
+    }
+    final cleanCityId = cityId?.trim();
+    if (cleanCityId != null && cleanCityId.isNotEmpty) {
+      params['city_id'] = cleanCityId;
+    }
+    final cleanDistrictId = districtId?.trim();
+    if (cleanDistrictId != null && cleanDistrictId.isNotEmpty) {
+      params['district_id'] = cleanDistrictId;
+    }
+    if (radiusKm != null) {
+      params['radius_km'] = radiusKm.toStringAsFixed(1);
+    }
+    final query = Uri(queryParameters: params).query;
+    return '/api/marketplace/stores/$storeId?$query';
+  }
+
 
   static String marketplaceAds({
     required String diwaniyaId,

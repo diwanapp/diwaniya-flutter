@@ -1,13 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
 
 import '../../config/theme/app_colors.dart';
 import '../../core/models/mock_data.dart';
 import '../../l10n/ar.dart';
 import '../../shared/widgets/app_chip.dart';
 import '../../shared/widgets/app_search_field.dart';
-import 'models/marketplace_filter_model.dart';
 import 'models/marketplace_ad_model.dart';
+import 'models/marketplace_filter_model.dart';
 import 'models/store_model.dart';
 import 'services/marketplace_service.dart';
 import 'widgets/empty_marketplace_state.dart';
@@ -28,24 +29,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final _searchCtrl = TextEditingController();
   MarketplaceFilter _filter = const MarketplaceFilter();
   List<Store> _liveStores = const <Store>[];
-  bool _loadingPlaces = false;
   List<MarketplaceAd> _marketplaceAds = const <MarketplaceAd>[];
+  bool _loadingPlaces = false;
   String? _placesMessage;
   String? _placesLocationLabel;
   String? _lastPlacesRequestKey;
-  DateTime? _lastPlacesRequestAt;
+  Timer? _searchDebounce;
+  final Set<String> _impressedStoreIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     MarketplaceService.configureResolver(() => _liveStores);
     dataVersion.addListener(_handleDataRefresh);
-    Future<void>.microtask(_loadMarketplacePlaces);
-    Future<void>.microtask(_loadMarketplaceAds);
+    Future<void>.microtask(() => _loadMarketplacePlaces(force: true));
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     dataVersion.removeListener(_handleDataRefresh);
     MarketplaceService.configureResolver(null);
     _searchCtrl.dispose();
@@ -54,107 +56,127 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   void _handleDataRefresh() {
     if (!mounted) return;
-    setState(() {});
-    _loadMarketplacePlaces();
+    _loadMarketplacePlaces(force: true);
   }
 
   void _updateFilter(MarketplaceFilter Function(MarketplaceFilter) update) {
     setState(() => _filter = update(_filter));
   }
 
-  Future<void> _loadMarketplaceAds() async {
-    final active = _activeDiwaniya;
-    if (active == null) {
-      if (mounted) setState(() => _marketplaceAds = const <MarketplaceAd>[]);
-      return;
-    }
-
-    try {
-      final result = await MarketplaceService.loadApprovedAds(
-        diwaniyaId: active.id,
-        placementScreen: 'marketplace',
-        limit: 5,
-      );
-
-      if (!mounted) return;
-      setState(() => _marketplaceAds = result.ads);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _marketplaceAds = const <MarketplaceAd>[]);
-    }
+  void _scheduleDiscoveryLoad() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 520),
+      () => _loadMarketplacePlaces(force: true),
+    );
   }
 
-  Future<void> _loadMarketplacePlaces({String? category}) async {
-    final requestCategory = category ?? _filter.selectedCategory;
+  Future<void> _loadMarketplacePlaces({
+    String? category,
+    String? queryText,
+    bool force = false,
+  }) async {
     final active = _activeDiwaniya;
+    final requestCategory = category ?? _filter.selectedCategory;
+    final requestQuery = queryText ?? _filter.query;
+
     if (active == null || active.id.trim().isEmpty) {
       if (!mounted) return;
       setState(() {
         _liveStores = const <Store>[];
+        _marketplaceAds = const <MarketplaceAd>[];
         _placesMessage = 'no_diwaniya_selected';
         _placesLocationLabel = null;
       });
       return;
     }
 
-    final requestKey = '${active.id}|${requestCategory ?? 'all'}';
-    final now = DateTime.now();
-    final lastAt = _lastPlacesRequestAt;
-    if (_lastPlacesRequestKey == requestKey &&
-        lastAt != null &&
-        now.difference(lastAt).inSeconds < 3) {
-      return;
-    }
-
+    final requestKey = [
+      active.id,
+      active.cityId ?? '',
+      active.districtId ?? '',
+      requestCategory ?? '',
+      requestQuery.trim(),
+    ].join('|');
+    if (!force && _lastPlacesRequestKey == requestKey) return;
     _lastPlacesRequestKey = requestKey;
-    _lastPlacesRequestAt = now;
 
-    setState(() {
-      _loadingPlaces = true;
-    });
+    setState(() => _loadingPlaces = true);
 
     try {
-      final result = await MarketplaceService.loadBackendPlaces(
+      final result = await MarketplaceService.loadDiscovery(
         diwaniyaId: active.id,
         category: requestCategory,
+        queryText: requestQuery,
         cityId: active.cityId,
         districtId: active.districtId,
         radiusKm: 10,
+        limit: 20,
       );
       if (!mounted) return;
       setState(() {
         _liveStores = result.stores;
+        _marketplaceAds = result.ads;
         _placesMessage = result.message ??
-            (result.isConfigured && result.stores.isEmpty
-                ? 'no_nearby_results'
-                : null);
+            (result.stores.isEmpty ? 'no_nearby_results' : null);
         _placesLocationLabel = result.locationLabel;
       });
+      _recordStoreImpressions(
+        result.stores.take(12),
+        active: active,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _liveStores = const <Store>[];
+        _marketplaceAds = const <MarketplaceAd>[];
         _placesMessage = 'marketplace_connection_error';
       });
     } finally {
-      if (mounted) {
-        setState(() => _loadingPlaces = false);
-      }
+      if (mounted) setState(() => _loadingPlaces = false);
     }
+  }
+
+  void _recordStoreImpressions(
+    Iterable<Store> stores, {
+    required DiwaniyaInfo active,
+  }) {
+    for (final store in stores) {
+      final key = '${store.id}|${_filter.selectedCategory ?? ''}|${_filter.query}';
+      if (!_impressedStoreIds.add(key)) continue;
+      MarketplaceService.recordMarketplaceEventLater(
+        eventType: 'marketplace_store_impression',
+        store: store,
+        diwaniyaId: active.id,
+        cityId: active.cityId,
+        districtId: active.districtId,
+      );
+    }
+  }
+
+  void _recordCategoryView(String categoryKey) {
+    final active = _activeDiwaniya;
+    MarketplaceService.recordMarketplaceCategoryViewLater(
+      categoryKey: categoryKey,
+      diwaniyaId: active?.id,
+      cityId: active?.cityId,
+      districtId: active?.districtId,
+    );
   }
 
   String? _placesNoticeText() {
     switch (_placesMessage) {
+      case 'google_places_disabled':
       case 'google_places_not_configured':
-        return 'سيتم عرض المحلات القريبة هنا بعد تفعيل مصدر السوق.';
+        return 'نعرض المتاجر المتاحة من ديوانية حاليًا.';
       case 'location_missing':
-        return 'حدد موقع الديوانية بدقة من تفاصيل الديوانية لعرض المحلات القريبة.';
+        return 'اختر المدينة أو الحي لعرض المتاجر الأقرب لديوانيتكم.';
       case 'no_diwaniya_selected':
         return 'اختر ديوانية أولًا لعرض السوق المرتبط بها.';
       case 'marketplace_connection_error':
-        return 'تعذر تحديث السوق الآن. تحقق من الاتصال وحاول مرة أخرى.';
+        return 'تعذر تحميل السوق الآن. حاول مرة أخرى.';
       case 'no_nearby_results':
-        return 'لا توجد نتائج قريبة ضمن 10 كم لهذا التصنيف.';
+        return 'لا توجد نتائج قريبة حاليًا. جرّب تغيير التصنيف أو توسيع النطاق.';
       default:
         return null;
     }
@@ -177,24 +199,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return '$district · $city';
   }
 
-  List<Store> _applyDiwaniyaLocation(List<Store> stores) {
-    final active = _activeDiwaniya;
-    if (active == null) return stores;
-
-    final city = active.city.trim();
-    final district = active.district.trim();
-
-    if (city.isEmpty) return stores;
-
-    final cityMatches = stores.where((s) => s.city == city).toList();
-    if (district.isEmpty) return cityMatches;
-
-    final districtMatches =
-        cityMatches.where((s) => s.district == district).toList();
-
-    if (districtMatches.isNotEmpty) return districtMatches;
-    return cityMatches;
-  }
+  List<Store> _applyDiwaniyaLocation(List<Store> stores) => stores;
 
   List<Store> get _filteredStores =>
       _applyDiwaniyaLocation(MarketplaceService.filterStores(_filter));
@@ -217,14 +222,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final isFiltering = _filter.isActive;
     final active = _activeDiwaniya;
-    final locationLabel = _locationLabelFor(active) ?? _placesLocationLabel;
+    final isFiltering = _filter.isActive;
+    final locationLabel = _placesLocationLabel ?? _locationLabelFor(active);
     final placesNoticeText = _placesNoticeText();
-
-    final hasResults = _loadingPlaces
-        ? (_liveStores.isNotEmpty || _allStores.isNotEmpty)
-        : (isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty);
+    final hasResults =
+        isFiltering ? _filteredStores.isNotEmpty : _allStores.isNotEmpty;
+    final showSkeleton = _loadingPlaces && _allStores.isEmpty;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -241,7 +245,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'سوق الديوانية',
+                  'السوق',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -249,9 +253,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ),
                 ),
                 Text(
-                  locationLabel == null
-                      ? 'خدمات قريبة من ديوانيتك'
-                      : 'خدمات قريبة من $locationLabel',
+                  locationLabel ?? 'دليل محلي ذكي حول ديوانيتك',
                   style: TextStyle(fontSize: 12, color: c.t3),
                 ),
               ],
@@ -264,10 +266,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 [
                   AppSearchField(
                     controller: _searchCtrl,
-                    hint: Ar.searchStoreHint,
-                    onChanged: (v) =>
-                        _updateFilter((f) => f.copyWith(query: v.trim())),
-                    onClear: () => _updateFilter((f) => f.copyWith(query: '')),
+                    hint: 'ابحث عن مطعم، مقهى، حلويات...',
+                    onChanged: (value) {
+                      _updateFilter((f) => f.copyWith(query: value.trim()));
+                      _scheduleDiscoveryLoad();
+                    },
+                    onClear: () {
+                      _updateFilter((f) => f.copyWith(query: ''));
+                      _loadMarketplacePlaces(force: true, queryText: '');
+                    },
                   ),
                   const SizedBox(height: 12),
                   _MarketplaceLocationBrief(
@@ -275,7 +282,13 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     locationLabel: locationLabel,
                   ),
                   const SizedBox(height: 12),
-                  MarketplaceAdsBanner(ads: _marketplaceAds),
+                  MarketplaceAdsBanner(
+                    ads: _marketplaceAds,
+                    diwaniyaId: active?.id,
+                    categoryKey: _filter.selectedCategory,
+                    cityId: active?.cityId,
+                    districtId: active?.districtId,
+                  ),
                   if (placesNoticeText != null) ...[
                     _MarketplaceBackendNotice(message: placesNoticeText),
                     const SizedBox(height: 12),
@@ -293,7 +306,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       const SizedBox(width: 8),
                       AppChip(
                         label: Ar.featuredFilter,
-                        icon: Icons.star_rounded,
+                        icon: Icons.verified_rounded,
                         selected: _filter.onlyFeatured,
                         onTap: () => _updateFilter(
                           (f) => f.copyWith(onlyFeatured: !f.onlyFeatured),
@@ -305,6 +318,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           onTap: () {
                             _searchCtrl.clear();
                             setState(() => _filter = const MarketplaceFilter());
+                            _loadMarketplacePlaces(force: true, queryText: '');
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -332,7 +346,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       _updateFilter(
                         (f) => f.copyWith(selectedCategory: () => cat),
                       );
-                      _loadMarketplacePlaces(category: cat);
+                      if (cat != null) _recordCategoryView(cat);
+                      _loadMarketplacePlaces(category: cat, force: true);
                     },
                   ),
                   const SizedBox(height: 16),
@@ -340,7 +355,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               ),
             ),
           ),
-          if (!hasResults)
+          if (showSkeleton)
+            const _MarketplaceLoadingSliver()
+          else if (!hasResults)
             SliverFillRemaining(
               hasScrollBody: false,
               child: EmptyMarketplaceState(
@@ -355,7 +372,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: StoreCard(store: _filteredStores[i]),
+                    child: StoreCard(
+                      store: _filteredStores[i],
+                      diwaniyaId: active?.id,
+                      cityId: active?.cityId,
+                      districtId: active?.districtId,
+                    ),
                   ),
                   childCount: _filteredStores.length,
                 ),
@@ -370,16 +392,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               MarketplaceHorizontalSection(
                 title: Ar.nearbyStores,
                 stores: _nearbyStores,
+                diwaniyaId: active?.id,
+                cityId: active?.cityId,
+                districtId: active?.districtId,
               ),
             if (_topRatedStores.isNotEmpty)
               MarketplaceHorizontalSection(
                 title: Ar.topRatedStores,
                 stores: _topRatedStores,
+                diwaniyaId: active?.id,
+                cityId: active?.cityId,
+                districtId: active?.districtId,
               ),
             if (_storesWithOffers.isNotEmpty)
               MarketplaceHorizontalSection(
                 title: Ar.todayOffers,
                 stores: _storesWithOffers,
+                diwaniyaId: active?.id,
+                cityId: active?.cityId,
+                districtId: active?.districtId,
               ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
@@ -400,7 +431,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: StoreCard(store: _allStores[i]),
+                    child: StoreCard(
+                      store: _allStores[i],
+                      diwaniyaId: active?.id,
+                      cityId: active?.cityId,
+                      districtId: active?.districtId,
+                    ),
                   ),
                   childCount: _allStores.length,
                 ),
@@ -456,7 +492,7 @@ class _MarketplaceLocationBrief extends StatelessWidget {
               children: [
                 Text(
                   hasLocation
-                      ? 'السوق مرتبط بموقع الديوانية'
+                      ? 'قريب من موقع الديوانية'
                       : 'حدد موقع الديوانية لنتائج أدق',
                   style: TextStyle(
                     color: c.t1,
@@ -544,3 +580,85 @@ class _MarketplaceBackendNotice extends StatelessWidget {
   }
 }
 
+class _MarketplaceLoadingSliver extends StatelessWidget {
+  const _MarketplaceLoadingSliver();
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, __) => const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: _StoreSkeletonCard(),
+          ),
+          childCount: 5,
+        ),
+      ),
+    );
+  }
+}
+
+class _StoreSkeletonCard extends StatelessWidget {
+  const _StoreSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return Container(
+      height: 104,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: c.inputBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _SkeletonLine(widthFactor: 0.62),
+                SizedBox(height: 10),
+                _SkeletonLine(widthFactor: 0.38),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonLine extends StatelessWidget {
+  final double widthFactor;
+  const _SkeletonLine({required this.widthFactor});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cl;
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      alignment: Alignment.centerRight,
+      child: Container(
+        height: 10,
+        decoration: BoxDecoration(
+          color: c.inputBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+      ),
+    );
+  }
+}

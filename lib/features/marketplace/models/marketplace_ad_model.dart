@@ -78,8 +78,8 @@ class MarketplaceAd {
 
     return MarketplaceAd(
       id: (json['id'] ?? '').toString(),
-      merchantStoreId: (json['merchant_store_id'] as String?)?.trim(),
-      storeName: (json['store_name'] as String?)?.trim(),
+      merchantStoreId: ((json['merchant_store_id'] ?? json['store_id']) as String?)?.trim(),
+      storeName: ((json['store_name'] ?? json['merchant_name']) as String?)?.trim(),
       storeCityNameAr: (json['store_city_name_ar'] as String?)?.trim(),
       storeDistrictNameAr: (json['store_district_name_ar'] as String?)?.trim(),
       storePhone: (json['store_phone'] as String?)?.trim(),
@@ -96,10 +96,10 @@ class MarketplaceAd {
       targetDistrictNamesAr: parseStringList(json['target_district_names_ar']),
       targetDistricts: parseStringList(json['target_districts']),
       contactWhatsapp: (json['contact_whatsapp'] as String?)?.trim(),
-      contactUrl: (json['contact_url'] as String?)?.trim(),
+      contactUrl: ((json['contact_url'] ?? json['target_url']) as String?)?.trim(),
       mapUrl: (json['map_url'] as String?)?.trim(),
       imageUrl: (json['image_url'] as String?)?.trim(),
-      placementScreen: (json['placement_screen'] as String?)?.trim(),
+      placementScreen: ((json['placement_screen'] ?? json['placement']) as String?)?.trim(),
       placementSlot: (json['placement_slot'] as String?)?.trim(),
       placementPriority: (json['placement_priority'] as num?)?.toInt() ?? 100,
       placementStartsAt: parseDate(json['placement_starts_at']),
@@ -114,6 +114,8 @@ class MarketplaceAd {
 
     final returnedPlacement = placementScreen?.trim();
     if (returnedPlacement == null || returnedPlacement.isEmpty) return false;
-    return returnedPlacement == placement;
+    return returnedPlacement == placement ||
+        (placement == 'marketplace' && returnedPlacement == 'marketplace_top') ||
+        (placement == 'marketplace_top' && returnedPlacement == 'marketplace');
   }
 }

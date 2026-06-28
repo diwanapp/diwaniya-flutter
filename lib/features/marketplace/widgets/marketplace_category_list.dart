@@ -27,12 +27,14 @@ class MarketplaceCategoryList extends StatelessWidget {
               onTap: () => onCategoryChanged(null),
             );
           }
-          final cat = marketplaceCategories.keys.elementAt(i - 1);
+          final cat = marketplaceCategories[i - 1];
           return AppChip(
-            label: cat,
-            icon: marketplaceCategories[cat]!,
-            selected: selectedCategory == cat,
-            onTap: () => onCategoryChanged(selectedCategory == cat ? null : cat),
+            label: cat.label,
+            icon: cat.icon,
+            selected: selectedCategory == cat.key,
+            onTap: () => onCategoryChanged(
+              selectedCategory == cat.key ? null : cat.key,
+            ),
           );
         },
       ),

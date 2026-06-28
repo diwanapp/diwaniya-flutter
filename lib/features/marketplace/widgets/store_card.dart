@@ -5,37 +5,64 @@ import '../../../config/theme/app_colors.dart';
 import '../../../core/navigation/app_routes.dart';
 import '../../../l10n/ar.dart';
 import '../models/store_model.dart';
-import 'store_badges.dart';
+import '../services/marketplace_service.dart';
 import 'offer_chip.dart';
+import 'store_badges.dart';
 
 String _ratingText(Store store) {
-  if (store.rating <= 0) return 'جديد';
-  return store.rating.toStringAsFixed(1);
+  if (!store.hasRating) return '';
+  return store.rating!.toStringAsFixed(1);
 }
 
 String _reviewText(Store store) {
-  if (store.reviewCount <= 0) return '';
+  if (!store.hasReviewCount) return '';
   return ' (${store.reviewCount})';
 }
 
 String _distanceText(Store store) {
-  if (store.distanceKm <= 0) return 'قريب';
-  if (store.distanceKm < 1) {
-    return '${(store.distanceKm * 1000).round()} م';
+  if (!store.hasDistance) return '';
+  final distance = store.distanceKm!;
+  if (distance < 1) {
+    return '${(distance * 1000).round()} م';
   }
-  return '${store.distanceKm.toStringAsFixed(1)} كم';
+  return '${distance.toStringAsFixed(1)} كم';
 }
 
 class StoreCard extends StatelessWidget {
   final Store store;
   final bool compact;
-  const StoreCard({super.key, required this.store, this.compact = false});
+  final String? diwaniyaId;
+  final String? cityId;
+  final String? districtId;
+
+  const StoreCard({
+    super.key,
+    required this.store,
+    this.compact = false,
+    this.diwaniyaId,
+    this.cityId,
+    this.districtId,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
+    final ratingText = _ratingText(store);
+    final reviewText = _reviewText(store);
+    final distanceText = _distanceText(store);
+    final sourceBadge = _sourceBadge(context);
+
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.storeDetails, extra: store.id),
+      onTap: () {
+        MarketplaceService.recordMarketplaceEventLater(
+          eventType: 'marketplace_store_open',
+          store: store,
+          diwaniyaId: diwaniyaId,
+          cityId: cityId,
+          districtId: districtId,
+        );
+        context.push(AppRoutes.storeDetails, extra: store.id);
+      },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -47,10 +74,10 @@ class StoreCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header: icon + name + open badge
             Row(children: [
               Container(
-                width: 44, height: 44,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: c.accent.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(12),
@@ -58,66 +85,83 @@ class StoreCard extends StatelessWidget {
                 child: Icon(store.icon, size: 22, color: c.accent),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(store.name,
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: c.t1),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(store.category, style: TextStyle(fontSize: 11, color: c.t3)),
-                ],
-              )),
-              OpenClosedBadge(isOpen: store.isOpenNow),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      store.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: c.t1,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      store.category,
+                      style: TextStyle(fontSize: 11, color: c.t3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (store.isOpenNow != null)
+                OpenClosedBadge(isOpen: store.isOpenNow!),
             ]),
             const SizedBox(height: 10),
-
-            // Meta: rating + distance + badges
             Row(children: [
-              Icon(Icons.star_rounded, size: 14, color: c.warning),
-              const SizedBox(width: 3),
-              Text(
-                _ratingText(store),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: c.t1,
-                ),
-              ),
-              if (_reviewText(store).isNotEmpty)
+              if (ratingText.isNotEmpty) ...[
+                Icon(Icons.star_rounded, size: 14, color: c.warning),
+                const SizedBox(width: 3),
                 Text(
-                  _reviewText(store),
-                  style: TextStyle(fontSize: 10, color: c.t3),
+                  ratingText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: c.t1,
+                  ),
                 ),
-              const SizedBox(width: 12),
-              Icon(Icons.place_rounded, size: 13, color: c.t3),
-              const SizedBox(width: 2),
-              Text(
-                _distanceText(store),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: c.t3,
-                  fontWeight: FontWeight.w600,
+                if (reviewText.isNotEmpty)
+                  Text(
+                    reviewText,
+                    style: TextStyle(fontSize: 10, color: c.t3),
+                  ),
+              ],
+              if (ratingText.isNotEmpty && distanceText.isNotEmpty)
+                const SizedBox(width: 12),
+              if (distanceText.isNotEmpty) ...[
+                Icon(Icons.place_rounded, size: 13, color: c.t3),
+                const SizedBox(width: 2),
+                Text(
+                  distanceText,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: c.t3,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
+              ],
               if (store.deliveryEtaText != null) ...[
                 const SizedBox(width: 8),
                 Icon(Icons.schedule_rounded, size: 13, color: c.t3),
                 const SizedBox(width: 2),
-                Flexible(child: Text(store.deliveryEtaText!,
+                Flexible(
+                  child: Text(
+                    store.deliveryEtaText!,
                     style: TextStyle(fontSize: 11, color: c.t3),
-                    overflow: TextOverflow.ellipsis)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
-              if (store.isSponsored) ...[
+              if (sourceBadge != null) ...[
                 const Spacer(),
-                SmallBadge(label: Ar.sponsored, color: c.warning),
-              ] else if (store.isFeatured) ...[
-                const Spacer(),
-                SmallBadge(label: Ar.featured, color: c.accent),
+                sourceBadge,
               ],
             ]),
-
-            // Offer (full mode only)
             if (store.hasActiveOffers && !compact) ...[
               const SizedBox(height: 8),
               OfferChip(offer: store.activeOffers.first),
@@ -126,5 +170,20 @@ class StoreCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget? _sourceBadge(BuildContext context) {
+    final c = context.cl;
+    if (store.isSponsored) {
+      return SmallBadge(label: Ar.sponsored, color: c.warning);
+    }
+    if (store.isVerifiedMerchant) {
+      return SmallBadge(label: 'موثق في ديوانية', color: c.accent);
+    }
+    final label = store.attributionLabel?.trim();
+    if (label != null && label.isNotEmpty) {
+      return SmallBadge(label: label, color: c.info);
+    }
+    return null;
   }
 }

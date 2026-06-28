@@ -1,57 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/theme/app_colors.dart';
 import '../../../l10n/ar.dart';
 import '../models/store_model.dart';
+import '../services/marketplace_service.dart';
 
 class StoreActionRow extends StatelessWidget {
   final Store store;
-  const StoreActionRow({super.key, required this.store});
+  final String? diwaniyaId;
+  final String? cityId;
+  final String? districtId;
 
-  void _copyAndSnack(BuildContext context, String label, String value) {
-    Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('تم نسخ $label')),
-    );
-  }
+  const StoreActionRow({
+    super.key,
+    required this.store,
+    this.diwaniyaId,
+    this.cityId,
+    this.districtId,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
-    final actions = <Widget>[
-      if (store.phone != null)
-        Expanded(
-          child: _ActionBtn(
-            icon: Icons.call_rounded,
-            label: Ar.callAction,
-            color: c.success,
-            enabled: true,
-            onTap: () => _copyAndSnack(context, Ar.callAction, store.phone!),
-          ),
+    final phoneUri = _phoneUri(store.phone);
+    final whatsappUri = _whatsAppUri(store.whatsapp ?? store.phone);
+    final mapsUri = _webUri(store.directionsUrl ?? store.mapUrl) ??
+        _mapsSearchUri(store.name, store.description);
+    final websiteUri = _webUri(store.website);
+    final actions = <_ActionSpec>[
+      if (whatsappUri != null)
+        _ActionSpec(
+          icon: Icons.chat_rounded,
+          label: Ar.whatsappAction,
+          color: const Color(0xFF25D366),
+          eventType: 'marketplace_whatsapp_click',
+          uri: whatsappUri,
         ),
-      if (store.phone != null && store.whatsapp != null) const SizedBox(width: 10),
-      if (store.whatsapp != null)
-        Expanded(
-          child: _ActionBtn(
-            icon: Icons.chat_rounded,
-            label: Ar.whatsappAction,
-            color: const Color(0xFF25D366),
-            enabled: true,
-            onTap: () => _copyAndSnack(context, Ar.whatsappAction, store.whatsapp!),
-          ),
+      if (phoneUri != null)
+        _ActionSpec(
+          icon: Icons.call_rounded,
+          label: Ar.callAction,
+          color: c.success,
+          eventType: 'marketplace_call_click',
+          uri: phoneUri,
         ),
-      if ((store.phone != null || store.whatsapp != null) && store.mapUrl != null)
-        const SizedBox(width: 10),
-      if (store.mapUrl != null)
-        Expanded(
-          child: _ActionBtn(
-            icon: Icons.map_rounded,
-            label: Ar.mapsAction,
-            color: c.info,
-            enabled: true,
-            onTap: () => _copyAndSnack(context, Ar.mapsAction, store.mapUrl!),
-          ),
+      if (mapsUri != null)
+        _ActionSpec(
+          icon: Icons.map_rounded,
+          label: Ar.mapsAction,
+          color: c.info,
+          eventType: 'marketplace_directions_click',
+          uri: mapsUri,
+        ),
+      if (websiteUri != null)
+        _ActionSpec(
+          icon: Icons.public_rounded,
+          label: 'الموقع',
+          color: c.accent,
+          eventType: 'marketplace_website_click',
+          uri: websiteUri,
         ),
     ];
 
@@ -69,7 +77,7 @@ class StoreActionRow extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'سيتم تفعيل وسائل التواصل مع المتجر عند ربط البيانات الحية.',
+                'وسائل التواصل غير متاحة حاليًا لهذا المتجر.',
                 style: TextStyle(fontSize: 12.5, color: c.t3, height: 1.5),
               ),
             ),
@@ -78,46 +86,130 @@ class StoreActionRow extends StatelessWidget {
       );
     }
 
-    return Row(children: actions);
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          Expanded(
+            child: _ActionBtn(
+              spec: actions[i],
+              onTap: () => _launchAction(context, actions[i]),
+            ),
+          ),
+          if (i != actions.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _launchAction(BuildContext context, _ActionSpec spec) async {
+    MarketplaceService.recordMarketplaceEventLater(
+      eventType: spec.eventType,
+      store: store,
+      diwaniyaId: diwaniyaId,
+      cityId: cityId,
+      districtId: districtId,
+    );
+    final ok = await launchUrl(spec.uri, mode: LaunchMode.externalApplication);
+    if (ok || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('تعذر فتح الرابط الآن.')),
+    );
   }
 }
 
-class _ActionBtn extends StatelessWidget {
+class _ActionSpec {
   final IconData icon;
   final String label;
   final Color color;
-  final bool enabled;
-  final VoidCallback? onTap;
+  final String eventType;
+  final Uri uri;
 
-  const _ActionBtn({
+  const _ActionSpec({
     required this.icon,
     required this.label,
     required this.color,
-    required this.enabled,
+    required this.eventType,
+    required this.uri,
+  });
+}
+
+class _ActionBtn extends StatelessWidget {
+  final _ActionSpec spec;
+  final VoidCallback? onTap;
+
+  const _ActionBtn({
+    required this.spec,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-        onTap: enabled ? onTap : null,
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: enabled ? 0.10 : 0.06),
+            color: spec.color.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 22, color: enabled ? color : color.withValues(alpha: 0.45)),
+            Icon(spec.icon, size: 22, color: spec.color),
             const SizedBox(height: 4),
             Text(
-              label,
+              spec.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: enabled ? color : color.withValues(alpha: 0.45),
+                color: spec.color,
               ),
             ),
           ]),
         ),
       );
+}
+
+Uri? _phoneUri(String? value) {
+  final digits = _sanitizedPhone(value);
+  if (digits == null) return null;
+  return Uri(scheme: 'tel', path: digits);
+}
+
+Uri? _whatsAppUri(String? value) {
+  final web = _webUri(value);
+  if (web != null && web.host.contains('wa.me')) return web;
+  final digits = _sanitizedPhone(value);
+  if (digits == null) return null;
+  return Uri.https(
+    'wa.me',
+    '/$digits',
+    {'text': 'السلام عليكم، وصلت لكم من تطبيق ديوانية.'},
+  );
+}
+
+Uri? _webUri(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) return null;
+  final uri = Uri.tryParse(text);
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
+  if (uri.scheme != 'https' && uri.scheme != 'http') return null;
+  return uri;
+}
+
+Uri? _mapsSearchUri(String name, String address) {
+  final query = [name.trim(), address.trim()]
+      .where((part) => part.isNotEmpty)
+      .join(' ');
+  if (query.isEmpty) return null;
+  return Uri.https(
+    'www.google.com',
+    '/maps/search/',
+    {'api': '1', 'query': query},
+  );
+}
+
+String? _sanitizedPhone(String? value) {
+  final digits = value?.replaceAll(RegExp(r'\D'), '');
+  if (digits == null || digits.length < 7 || digits.length > 15) return null;
+  return digits;
 }

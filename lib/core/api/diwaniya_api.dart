@@ -291,6 +291,68 @@ class DiwaniyaApi {
     return _expectMap(response, 'DiwaniyaApi.searchMarketplacePlaces');
   }
 
+  static Future<Map<String, dynamic>> loadMarketplaceDiscovery({
+    required String diwaniyaId,
+    String? category,
+    String? queryText,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
+    int limit = 20,
+  }) async {
+    final d = _normalizedRequiredId(
+      diwaniyaId,
+      'معرّف الديوانية',
+    );
+    final response = await ApiClient.get(
+      Endpoints.marketplaceDiscovery(
+        diwaniyaId: d,
+        category: category,
+        queryText: queryText,
+        cityId: cityId,
+        districtId: districtId,
+        radiusKm: radiusKm,
+        limit: limit,
+      ),
+    );
+    return _expectMap(response, 'DiwaniyaApi.loadMarketplaceDiscovery');
+  }
+
+  static Future<Map<String, dynamic>> recordMarketplaceEvents(
+    List<Map<String, dynamic>> events,
+  ) async {
+    final response = await ApiClient.post(
+      Endpoints.marketplaceEventsBatch(),
+      body: {'events': events},
+    );
+    return _expectMap(response, 'DiwaniyaApi.recordMarketplaceEvents');
+  }
+
+  static Future<Map<String, dynamic>> loadMarketplaceStoreDetails({
+    required String diwaniyaId,
+    required String storeId,
+    String? category,
+    String? cityId,
+    String? districtId,
+    double? radiusKm,
+  }) async {
+    final d = _normalizedRequiredId(
+      diwaniyaId,
+      'معرّف الديوانية',
+    );
+    final response = await ApiClient.get(
+      Endpoints.marketplaceStoreDetails(
+        storeId: storeId,
+        diwaniyaId: d,
+        category: category,
+        cityId: cityId,
+        districtId: districtId,
+        radiusKm: radiusKm,
+      ),
+    );
+    return _expectMap(response, 'DiwaniyaApi.loadMarketplaceStoreDetails');
+  }
+
 
   static Future<Map<String, dynamic>> loadMarketplaceAds({
     required String diwaniyaId,

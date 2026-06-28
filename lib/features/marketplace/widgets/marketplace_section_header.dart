@@ -19,7 +19,17 @@ class MarketplaceSectionHeader extends StatelessWidget {
 class MarketplaceHorizontalSection extends StatelessWidget {
   final String title;
   final List<Store> stores;
-  const MarketplaceHorizontalSection({super.key, required this.title, required this.stores});
+  final String? diwaniyaId;
+  final String? cityId;
+  final String? districtId;
+  const MarketplaceHorizontalSection({
+    super.key,
+    required this.title,
+    required this.stores,
+    this.diwaniyaId,
+    this.cityId,
+    this.districtId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +46,13 @@ class MarketplaceHorizontalSection extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 10),
             itemBuilder: (_, i) => SizedBox(
               width: 260,
-              child: StoreCard(store: stores[i], compact: true),
+              child: StoreCard(
+                store: stores[i],
+                compact: true,
+                diwaniyaId: diwaniyaId,
+                cityId: cityId,
+                districtId: districtId,
+              ),
             ),
           ),
         ),
