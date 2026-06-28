@@ -634,9 +634,9 @@ class _PlanSelectionScreenState extends State<PlanSelectionScreen> {
                           'يتجدد تلقائيًا ما لم يتم إيقاف التجديد من المتجر.\nلن يتم تفعيل الاشتراك إلا بعد التحقق من الدفع.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: c.t3,
-                            height: 1.65,
-                            fontSize: 11.5,
+                            color: c.t3.withValues(alpha: 0.76),
+                            height: 1.75,
+                            fontSize: 11,
                           ),
                         ),
                       ],
@@ -822,22 +822,28 @@ class _PlanPickerCard extends StatelessWidget {
             subtitle: 'كل خيار يحدد حد الأعضاء للديوانية كلها.',
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final tier in tiers) ...[
-                  _MemberTierChip(
-                    label: _tierChipLabel(tier.memberLimit),
-                    selected: tier.memberLimit == selectedMemberLimit,
-                    disabled: minimumMemberLimit != null &&
-                        tier.memberLimit < minimumMemberLimit!,
-                    onTap: () => onTierChanged(tier.memberLimit),
-                  ),
-                  if (tier != tiers.last) const SizedBox(width: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 6.0;
+              final chipWidth =
+                  ((constraints.maxWidth - (gap * 4)) / 5).clamp(48.0, 54.0);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  for (final tier in tiers) ...[
+                    _MemberTierChip(
+                      label: _tierChipLabel(tier.memberLimit),
+                      width: chipWidth,
+                      selected: tier.memberLimit == selectedMemberLimit,
+                      disabled: minimumMemberLimit != null &&
+                          tier.memberLimit < minimumMemberLimit!,
+                      onTap: () => onTierChanged(tier.memberLimit),
+                    ),
+                    if (tier != tiers.last) const SizedBox(width: gap),
+                  ],
                 ],
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           Row(
@@ -930,9 +936,9 @@ class _PriceSummaryCard extends StatelessWidget {
                         : '${_formatSar(currentQuote.amountSar)} ر.س',
                     style: TextStyle(
                       color: c.t1,
-                      fontSize: 34,
+                      fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      height: 1.05,
+                      height: 1.08,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -974,9 +980,9 @@ class _BenefitRow extends StatelessWidget {
       runSpacing: 8,
       children: [
         _BenefitChip(label: 'أعضاء أكثر'),
-        _BenefitChip(label: 'صور أكثر'),
-        _BenefitChip(label: 'تصويتات أكثر'),
-        _BenefitChip(label: 'ملفات أكبر'),
+        _BenefitChip(label: 'صور أكثر', icon: Icons.image_rounded),
+        _BenefitChip(label: 'تصويتات أكثر', icon: Icons.how_to_vote_rounded),
+        _BenefitChip(label: 'ملفات أكبر', icon: Icons.attach_file_rounded),
       ],
     );
   }
@@ -984,26 +990,37 @@ class _BenefitRow extends StatelessWidget {
 
 class _BenefitChip extends StatelessWidget {
   final String label;
+  final IconData icon;
 
-  const _BenefitChip({required this.label});
+  const _BenefitChip({
+    required this.label,
+    this.icon = Icons.groups_rounded,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: c.inputBg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: c.border),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: c.t2,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: c.t3),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: c.t2,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1032,12 +1049,14 @@ class _StoreUnavailableNotice extends StatelessWidget {
 
 class _MemberTierChip extends StatelessWidget {
   final String label;
+  final double width;
   final bool selected;
   final bool disabled;
   final VoidCallback onTap;
 
   const _MemberTierChip({
     required this.label,
+    required this.width,
     required this.selected,
     required this.disabled,
     required this.onTap,
@@ -1061,12 +1080,12 @@ class _MemberTierChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        width: 58,
-        height: 44,
+        width: width,
+        height: 40,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
                 ? c.accent
@@ -1080,7 +1099,7 @@ class _MemberTierChip extends StatelessWidget {
           style: TextStyle(
             color: fg,
             fontWeight: FontWeight.w900,
-            fontSize: 13,
+            fontSize: 12.5,
           ),
         ),
       ),
