@@ -20,13 +20,21 @@ class StoreActionRow extends StatelessWidget {
     this.districtId,
   });
 
+  static bool hasActions(Store store) {
+    return _phoneUri(store.phone) != null ||
+        _whatsAppUri(store.whatsapp ?? store.phone) != null ||
+        _webUri(store.directionsUrl ?? store.mapUrl) != null ||
+        _webUri(store.website) != null ||
+        _mapsSearchUri(store.description) != null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cl;
     final phoneUri = _phoneUri(store.phone);
     final whatsappUri = _whatsAppUri(store.whatsapp ?? store.phone);
     final mapsUri = _webUri(store.directionsUrl ?? store.mapUrl) ??
-        _mapsSearchUri(store.name, store.description);
+        _mapsSearchUri(store.description);
     final websiteUri = _webUri(store.website);
     final actions = <_ActionSpec>[
       if (whatsappUri != null)
@@ -64,26 +72,7 @@ class StoreActionRow extends StatelessWidget {
     ];
 
     if (actions.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: c.inputBg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: c.border),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline_rounded, size: 18, color: c.t3),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'وسائل التواصل غير متاحة حاليًا لهذا المتجر.',
-                style: TextStyle(fontSize: 12.5, color: c.t3, height: 1.5),
-              ),
-            ),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return Row(
@@ -196,10 +185,8 @@ Uri? _webUri(String? value) {
   return uri;
 }
 
-Uri? _mapsSearchUri(String name, String address) {
-  final query = [name.trim(), address.trim()]
-      .where((part) => part.isNotEmpty)
-      .join(' ');
+Uri? _mapsSearchUri(String address) {
+  final query = address.trim();
   if (query.isEmpty) return null;
   return Uri.https(
     'www.google.com',

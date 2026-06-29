@@ -12,10 +12,11 @@ class MarketplaceCategoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
+        padding: const EdgeInsetsDirectional.only(start: 2, end: 18),
         itemCount: marketplaceCategories.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {

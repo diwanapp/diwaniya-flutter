@@ -9,6 +9,11 @@ import '../data/marketplace_categories.dart';
 
 typedef MarketplaceSourceResolver = List<Store> Function();
 
+String? _cleanStaticText(dynamic value) {
+  final text = value?.toString().trim();
+  if (text == null || text.isEmpty) return null;
+  return text;
+}
 
 class MarketplaceAdsLoadResult {
   final String? message;
@@ -36,17 +41,59 @@ class MarketplaceLoadResult {
   });
 }
 
+class MarketplaceGoogleStatus {
+  final bool enabled;
+  final String reason;
+  final String? message;
+
+  const MarketplaceGoogleStatus({
+    required this.enabled,
+    required this.reason,
+    this.message,
+  });
+
+  factory MarketplaceGoogleStatus.fromJson(dynamic value) {
+    if (value is! Map) {
+      return const MarketplaceGoogleStatus(enabled: true, reason: 'enabled');
+    }
+    final json = Map<String, dynamic>.from(value);
+    final reason = (json['reason'] ?? 'enabled').toString().trim();
+    final message = _cleanStaticText(json['message']);
+    return MarketplaceGoogleStatus(
+      enabled: json['enabled'] == true,
+      reason: reason.isEmpty ? 'enabled' : reason,
+      message: message,
+    );
+  }
+}
+
+class MarketplaceDiscoverySection {
+  final String key;
+  final String title;
+  final List<Store> stores;
+
+  const MarketplaceDiscoverySection({
+    required this.key,
+    required this.title,
+    required this.stores,
+  });
+}
+
 class MarketplaceDiscoveryLoadResult {
   final List<Store> stores;
+  final List<MarketplaceDiscoverySection> sections;
   final List<MarketplaceAd> ads;
   final bool googleAttributionRequired;
+  final MarketplaceGoogleStatus googleStatus;
   final String? message;
   final String? locationLabel;
 
   const MarketplaceDiscoveryLoadResult({
     required this.stores,
+    required this.sections,
     required this.ads,
     required this.googleAttributionRequired,
+    required this.googleStatus,
     required this.message,
     required this.locationLabel,
   });
@@ -135,6 +182,35 @@ class MarketplaceService {
     switch (filter.sortBy) {
       case MarketplaceSortBy.nearest:
         list.sort((a, b) => _sortNullableDistance(a).compareTo(_sortNullableDistance(b)));
+        break;
+      case MarketplaceSortBy.topRated:
+        list.sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
+        break;
+      case MarketplaceSortBy.name:
+        list.sort((a, b) => a.name.compareTo(b.name));
+        break;
+    }
+    return list;
+  }
+
+  static List<Store> filterLoadedStores(
+    Iterable<Store> stores,
+    MarketplaceFilter filter,
+  ) {
+    var list = List<Store>.from(stores);
+
+    if (filter.onlyOpenNow) {
+      list = list.where((s) => s.isOpenNow == true).toList();
+    }
+    if (filter.onlyFeatured) {
+      list = list.where((s) => s.isFeatured || s.isSponsored).toList();
+    }
+
+    switch (filter.sortBy) {
+      case MarketplaceSortBy.nearest:
+        list.sort(
+          (a, b) => _sortNullableDistance(a).compareTo(_sortNullableDistance(b)),
+        );
         break;
       case MarketplaceSortBy.topRated:
         list.sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
@@ -287,17 +363,32 @@ class MarketplaceService {
     final sectionsRaw = response['sections'];
     final seen = <String>{};
     final stores = <Store>[];
+    final sections = <MarketplaceDiscoverySection>[];
     if (sectionsRaw is List) {
       for (final section in sectionsRaw.whereType<Map>()) {
         final items = section['items'];
         if (items is! List) continue;
+        final sectionStores = <Store>[];
+        final sectionSeen = <String>{};
         for (final raw in items.whereType<Map>()) {
           final store = _storeFromDiscoveryItem(
             Map<String, dynamic>.from(raw),
             context: context,
           );
           if (store.id.trim().isEmpty || store.name.trim().isEmpty) continue;
+          if (sectionSeen.add(store.id)) sectionStores.add(store);
           if (seen.add(store.id)) stores.add(store);
+        }
+        if (sectionStores.isNotEmpty) {
+          final key = (section['key'] ?? '').toString().trim();
+          final title = (section['title'] ?? '').toString().trim();
+          sections.add(
+            MarketplaceDiscoverySection(
+              key: key.isEmpty ? 'stores' : key,
+              title: title.isEmpty ? 'المتاجر المتاحة' : title,
+              stores: sectionStores,
+            ),
+          );
         }
       }
     }
@@ -315,8 +406,10 @@ class MarketplaceService {
     final message = (response['message'] ?? '').toString().trim();
     return MarketplaceDiscoveryLoadResult(
       stores: stores,
+      sections: sections,
       ads: ads,
       googleAttributionRequired: response['google_attribution_required'] == true,
+      googleStatus: MarketplaceGoogleStatus.fromJson(response['google_status']),
       message: message.isEmpty ? null : message,
       locationLabel: label.isEmpty ? null : label,
     );
@@ -545,9 +638,7 @@ class MarketplaceService {
   }
 
   static String? _cleanText(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) return null;
-    return text;
+    return _cleanStaticText(value);
   }
 
   static List<String> _stringList(dynamic value) {

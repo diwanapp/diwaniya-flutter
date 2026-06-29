@@ -163,13 +163,15 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                 const SizedBox(height: 12),
                 Wrap(spacing: 8, runSpacing: 8, children: badges),
               ],
-              const SizedBox(height: 20),
-              StoreActionRow(
-                store: store,
-                diwaniyaId: active?.id,
-                cityId: active?.cityId,
-                districtId: active?.districtId,
-              ),
+              if (StoreActionRow.hasActions(store)) ...[
+                const SizedBox(height: 20),
+                StoreActionRow(
+                  store: store,
+                  diwaniyaId: active?.id,
+                  cityId: active?.cityId,
+                  districtId: active?.districtId,
+                ),
+              ],
               if (store.description.trim().isNotEmpty) ...[
                 const SizedBox(height: 24),
                 const _SectionTitle(label: Ar.aboutStore),
